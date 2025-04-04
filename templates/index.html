@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input[type="text"], input[type="number"], input[type="date"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #questionForm {
+            margin-top: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .conditional-field {
+            margin-top: 10px;
+            padding-left: 15px;
+            border-left: 3px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Daily Habit Tracker</h1>
+        
+        <div id="habitSelectGroup" class="form-group">
+            <label for="habitSelect">Select a habit to track:</label>
+            <select id="habitSelect">
+                <option value="">-- Select a habit --</option>
+                {% for habit_id, habit_data in habits.items()|sort %}
+                <option value="{{ habit_id }}">{{ habit_id|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div id="questionForm" class="hidden">
+            <form id="habitForm">
+                <div id="dynamicQuestions">
+                    <!-- Questions will be added here dynamically -->
+                </div>
+                
+                <button type="submit">Log Habit</button>
+            </form>
+        </div>
+        
+        <div id="confirmation" class="hidden">
+            <h3>Habit logged successfully!</h3>
+            <p>Your data has been received and saved to the database.</p>
+            <p id="confirmationDate"></p>
+            <button id="logAnotherBtn">Log Another Habit</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const habitSelect = document.getElementById('habitSelect');
+            const habitSelectGroup = document.getElementById('habitSelectGroup');
+            const questionForm = document.getElementById('questionForm');
+            const dynamicQuestions = document.getElementById('dynamicQuestions');
+            const habitForm = document.getElementById('habitForm');
+            const confirmation = document.getElementById('confirmation');
+            const confirmationDate = document.getElementById('confirmationDate');
+            const logAnotherBtn = document.getElementById('logAnotherBtn');
+            
+            // Function to get today's date in YYYY-MM-DD format
+            function getTodayDateString() {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            
+            // Function to handle conditional fields
+            function handleConditionalFields() {
+                const conditionalFields = document.querySelectorAll('[data-conditional-field]');
+                
+                conditionalFields.forEach(field => {
+                    const parentField = document.getElementById(field.dataset.conditionalField);
+                    const triggerValue = field.dataset.conditionalValue;
+                    
+                    if (parentField) {
+                        // Initial check
+                        field.closest('.form-group').classList.toggle('hidden', parentField.value !== triggerValue);
+                        
+                        // Add event listener to parent field
+                        parentField.addEventListener('change', function() {
+                            field.closest('.form-group').classList.toggle('hidden', this.value !== triggerValue);
+                        });
+                    }
+                });
+            }
+            
+            // When habit is selected, display the appropriate questions
+            habitSelect.addEventListener('change', function() {
+                const selectedHabit = this.value;
+                
+                if (!selectedHabit) {
+                    questionForm.classList.add('hidden');
+                    return;
+                }
+                
+                // Fetch questions for the selected habit
+                fetch('/get_questions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ habit: selectedHabit })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Clear previous questions
+                    dynamicQuestions.innerHTML = '';
+                    
+                    // Add hidden field for the habit type
+                    const habitField = document.createElement('input');
+                    habitField.type = 'hidden';
+                    habitField.name = 'habit_type';
+                    habitField.value = selectedHabit;
+                    dynamicQuestions.appendChild(habitField);
+                    
+                    // Add each question to the form
+                    data.questions.forEach(question => {
+                        const formGroup = document.createElement('div');
+                        formGroup.className = 'form-group';
+                        
+                        if (question.conditional) {
+                            formGroup.classList.add('conditional-field');
+                            formGroup.classList.add('hidden');
+                        }
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = question.id;
+                        label.textContent = question.text;
+                        formGroup.appendChild(label);
+                        
+                        let input;
+                        
+                        if (question.type === 'select') {
+                            // Create select dropdown
+                            input = document.createElement('select');
+                            input.id = question.id;
+                            input.name = question.id;
+                            
+                            // Add options to select
+                            if (question.options && Array.isArray(question.options)) {
+                                question.options.forEach(optionText => {
+                                    const option = document.createElement('option');
+                                    option.value = optionText;
+                                    option.textContent = optionText;
+                                    input.appendChild(option);
+                                });
+                            }
+                        } else {
+                            // Create regular input
+                            input = document.createElement('input');
+                            input.type = question.type;
+                            input.id = question.id;
+                            input.name = question.id;
+                            
+                            // Set today's date as default for date inputs
+                            if (question.type === 'date') {
+                                input.value = getTodayDateString();
+                            }
+                            
+                            if (question.type === 'range') {
+                                input.min = question.min;
+                                input.max = question.max;
+                                
+                                const valueDisplay = document.createElement('span');
+                                valueDisplay.id = `${question.id}_value`;
+                                valueDisplay.textContent = ' 5'; // Default middle value
+                                
+                                input.addEventListener('input', function() {
+                                    valueDisplay.textContent = ` ${this.value}`;
+                                });
+                                
+                                label.appendChild(valueDisplay);
+                            }
+                        }
+                        
+                        // Add conditional attributes if needed
+                        if (question.conditional) {
+                            input.dataset.conditionalField = question.conditional.field;
+                            input.dataset.conditionalValue = question.conditional.value;
+                        }
+                        
+                        // Set required attribute if specified
+                        if (question.required) {
+                            input.required = true;
+                        }
+                        
+                        formGroup.appendChild(input);
+                        dynamicQuestions.appendChild(formGroup);
+                    });
+                    
+                    // Handle conditional fields
+                    handleConditionalFields();
+                    
+                    // Show the form
+                    questionForm.classList.remove('hidden');
+                })
+                .catch(error => console.error('Error:', error));
+            });
+            
+            // Handle form submission
+            habitForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                
+                fetch('/submit_habit', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    // Check if the response is OK
+                    if (!response.ok) {
+                        // Throw an error with the status
+                        return response.text().then(text => {
+                            throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Success:', data);
+                    
+                    // Set the confirmation date message
+                    if (data.log_date) {
+                        // Format the date for display
+                        const dateObj = new Date(data.log_date);
+                        const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                        });
+                        
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        dateObj.setHours(0, 0, 0, 0);
+                        
+                        let dateMessage;
+                        
+                        if (dateObj.getTime() === today.getTime()) {
+                            dateMessage = `Habit logged for today (${formattedDate})`;
+                        } else if (dateObj < today) {
+                            dateMessage = `Habit logged for a past date: ${formattedDate}`;
+                        } else {
+                            dateMessage = `Habit logged for a future date: ${formattedDate}`;
+                        }
+                        
+                        confirmationDate.textContent = dateMessage;
+                    } else {
+                        confirmationDate.textContent = "";
+                    }
+                    
+                    // Hide the habit select dropdown
+                    habitSelectGroup.style.display = 'none';
+                    
+                    // Hide form and show confirmation
+                    questionForm.classList.add('hidden');
+                    confirmation.classList.remove('hidden');
+                })
+                .catch(error => {
+                    // Enhanced error logging
+                    console.error('Error details:', error);
+                    alert(`Submission failed: ${error.message}`);
+                });
+            });
+            
+            // Handle "Log Another Habit" button
+            logAnotherBtn.addEventListener('click', function() {
+                // Reset the habit select dropdown
+                habitSelect.value = '';
+                habitSelectGroup.style.display = 'block';
+                
+                // Hide confirmation
+                confirmation.classList.add('hidden');
+                
+                // Reset the form
+                habitForm.reset();
+                dynamicQuestions.innerHTML = '';
+            });
+        });
+    </script>
+</body>
+</html>
