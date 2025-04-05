@@ -1,3 +1,6 @@
+from visualization import generate_sample_plot, generate_interactive_plot, ensure_static_dir
+import os
+from flask import send_file
 from flask import Flask, render_template, request, jsonify
 import sqlite3
 from datetime import datetime, timedelta
@@ -132,6 +135,23 @@ def submit_habit():
             "status": "error", 
             "message": str(e)
         }), 500
+    
+@app.route('/visualization')
+def visualization_page():
+    """Render the visualization page"""
+    return render_template('visualization.html')
+
+@app.route('/generate_plot')
+def show_plot():
+    """Generate and display the simple plot"""
+    plot_path = generate_sample_plot()
+    return send_file(plot_path, mimetype='image/png')
+
+@app.route('/generate_interactive_plot')
+def show_interactive_plot():
+    """Generate and display the more complex plot"""
+    plot_path = generate_interactive_plot()
+    return send_file(plot_path, mimetype='image/png')
 
 if __name__ == '__main__':
     init_db()  # Initialize database when the app starts

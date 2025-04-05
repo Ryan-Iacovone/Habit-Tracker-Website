@@ -62,11 +62,38 @@
             padding-left: 15px;
             border-left: 3px solid #ddd;
         }
+        /* Navigation styles */
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .nav-button {
+            background-color: #2196F3;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            margin: 0 5px;
+            text-align: center;
+        }
+        .nav-button:hover {
+            background-color: #0b7dda;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Daily Habit Tracker</h1>
+        
+        <!-- New navigation buttons -->
+        <div class="nav-buttons">
+            <a href="/" class="nav-button">Home</a>
+            <a href="/visualization" class="nav-button">View Visualizations</a>
+        </div>
         
         <div id="habitSelectGroup" class="form-group">
             <label for="habitSelect">Select a habit to track:</label>

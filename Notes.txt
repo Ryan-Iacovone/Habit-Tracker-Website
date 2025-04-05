@@ -1,0 +1,7 @@
+to build the docker app from this repo run:
+
+docker-compose up --build
+
+to tear it down from docker run:
+
+docker compose down

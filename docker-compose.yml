@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  habit-tracker:
+    build: .
+    ports:
+      - "3001:8080"  # Maps container's port 8080 to host's 8080
+    volumes:
+      - ./habits.db:/app/habits.db  # Mount the SQLite DB file from host into container
+    working_dir: /app
+    command: python main.py
