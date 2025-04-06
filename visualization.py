@@ -4,6 +4,10 @@ import seaborn as sns
 import numpy as np
 import os
 from flask import send_file
+import plotly.graph_objs as go
+import plotly.io as pio
+import io
+import base64
 
 # Create a directory for static files if it doesn't exist
 def ensure_static_dir():
@@ -80,3 +84,54 @@ def generate_interactive_plot():
     plt.close()
     
     return file_path
+
+
+def visualization_dashboard():
+    # --- Static plot (Matplotlib) ---
+    plt.figure(figsize=(8, 4))
+    x = range(10)
+    y = [i**2 for i in x]
+    plt.plot(x, y, marker='o')
+    plt.title('Static Plot: Squares')
+    plt.xlabel('x')
+    plt.ylabel('y')
+
+    # Save static plot to bytes
+    static_bytes = io.BytesIO()
+    plt.savefig(static_bytes, format='png')
+    static_bytes.seek(0)
+    static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
+    static_plot_url = f"data:image/png;base64,{static_base64}"
+    plt.close()
+
+    # --- Interactive plot (Plotly) ---
+    import plotly.graph_objs as go
+    import plotly.io as pio
+    import pandas as pd
+    import numpy as np
+    from datetime import datetime, timedelta
+
+    dates = pd.date_range(end=datetime.today(), periods=30)
+    habit_counts = np.random.randint(0, 5, size=30)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=dates,
+        y=habit_counts,
+        mode='lines+markers',
+        name='Habit Check-ins',
+        line=dict(color='royalblue', width=2),
+        marker=dict(size=6)
+    ))
+    fig.update_layout(
+        title='Interactive Plot: Habit Check-ins Over 30 Days',
+        xaxis_title='Date',
+        yaxis_title='Check-ins',
+        template='plotly_white',
+        autosize=True,
+        height=500
+    )
+    interactive_plot_html = pio.to_html(fig, full_html=False)
+
+    return interactive_plot_html, static_plot_url
+

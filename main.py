@@ -1,4 +1,4 @@
-from visualization import generate_sample_plot, generate_interactive_plot, ensure_static_dir
+from visualization import generate_sample_plot, generate_interactive_plot, visualization_dashboard, ensure_static_dir
 import os
 from flask import send_file
 from flask import Flask, render_template, request, jsonify
@@ -152,6 +152,15 @@ def show_interactive_plot():
     """Generate and display the more complex plot"""
     plot_path = generate_interactive_plot()
     return send_file(plot_path, mimetype='image/png')
+
+@app.route('/visualization_dashboard')
+def show_interactive_plot():
+    """Generate and display the interactive plot"""
+    interactive_plot_html, static_plot_url = visualization_dashboard()
+# Render both in an HTML page
+    render_template('visualization_dashboard.html',
+                        static_plot_url=static_plot_url,
+                        interactive_plot_html=interactive_plot_html)
 
 if __name__ == '__main__':
     init_db()  # Initialize database when the app starts

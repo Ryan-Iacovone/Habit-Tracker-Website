@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Combined Visualization Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            max-width: 1000px;
+            margin: auto;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 30px;
+            color: #555;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Visualization Dashboard</h1>
+
+    <div class="section">
+        <h2>Static Plot</h2>
+        <img src="{{ static_plot_url }}" alt="Static Plot" style="max-width:100%;">
+    </div>
+
+    <div class="section">
+        <h2>Interactive Plot</h2>
+        {{ interactive_plot_html | safe }}
+    </div>
+
+    <a class="back-link" href="/">← Back to Home</a>
+
+</body>
+</html>

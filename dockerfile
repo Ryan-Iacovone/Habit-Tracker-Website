@@ -19,5 +19,5 @@ COPY . .
 # Expose the port Streamlit uses
 EXPOSE 8080
 
-# Command to run the Streamlit app
-CMD ["python", "main.py"]
+# Command left empty because it's handled in the docker-compose file
+CMD []

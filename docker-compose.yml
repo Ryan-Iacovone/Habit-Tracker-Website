@@ -8,4 +8,4 @@ services:
     volumes:
       - ./habits.db:/app/habits.db  # Mount the SQLite DB file from host into container
     working_dir: /app
-    command: python main.py
+    command: gunicorn -b 0.0.0.0:8080 main:app
