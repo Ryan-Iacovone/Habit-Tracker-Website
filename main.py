@@ -1,10 +1,20 @@
-from visualization import generate_sample_plot, generate_interactive_plot, visualization_dashboard, ensure_static_dir
+from visualization import generate_matlotlib, generate_seaborn, generate_plotly
 import os
 from flask import send_file
 from flask import Flask, render_template, request, jsonify
 import sqlite3
 from datetime import datetime, timedelta
 import json
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import os
+from flask import send_file
+import plotly.graph_objs as go
+import plotly.io as pio
+import io
+import base64
+import pandas as pd 
 
 app = Flask(__name__)
 
@@ -62,14 +72,12 @@ def init_db():
     """Initialize the SQLite database and create the habits table."""
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS habit_logs (
+    cursor.execute('''CREATE TABLE IF NOT EXISTS habit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             habit_type TEXT,
             data TEXT,
             log_date DATE,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )''')
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
 
@@ -136,31 +144,17 @@ def submit_habit():
             "message": str(e)
         }), 500
     
-@app.route('/visualization')
+@app.route('/visualizations')
 def visualization_page():
-    """Render the visualization page"""
-    return render_template('visualization.html')
+    matplotlib_plot_url= generate_matlotlib()
+    seaborn_plot_url = generate_seaborn()  
+    plotly_html = generate_plotly()
 
-@app.route('/generate_plot')
-def show_plot():
-    """Generate and display the simple plot"""
-    plot_path = generate_sample_plot()
-    return send_file(plot_path, mimetype='image/png')
+    return render_template('visualizations.html',
+                           matplotlib_plot_url=matplotlib_plot_url,
+                           seaborn_plot_url=seaborn_plot_url,
+                           plotly_html=plotly_html)
 
-@app.route('/generate_interactive_plot')
-def show_interactive_plot():
-    """Generate and display the more complex plot"""
-    plot_path = generate_interactive_plot()
-    return send_file(plot_path, mimetype='image/png')
-
-@app.route('/visualization_dashboard')
-def show_interactive_plot():
-    """Generate and display the interactive plot"""
-    interactive_plot_html, static_plot_url = visualization_dashboard()
-# Render both in an HTML page
-    render_template('visualization_dashboard.html',
-                        static_plot_url=static_plot_url,
-                        interactive_plot_html=interactive_plot_html)
 
 if __name__ == '__main__':
     init_db()  # Initialize database when the app starts
