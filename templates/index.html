@@ -302,7 +302,7 @@
                     // Set the confirmation date message
                     if (data.log_date) {
                         // Format the date for display
-                        const dateObj = new Date(data.log_date);
+                        const dateObj = new Date(data.log_date + 'T00:00:00'); // forces local time otherwies it will be UTC by default;
                         const formattedDate = dateObj.toLocaleDateString('en-US', { 
                             weekday: 'long', 
                             year: 'numeric', 
@@ -318,7 +318,7 @@
                         let dateMessage;
                         
                         if (dateObj.getTime() === today.getTime()) {
-                            dateMessage = `Habit logged for today (${formattedDate})`;
+                            dateMessage = `Today's habit has been logged! (${formattedDate})`;
                         } else if (dateObj < today) {
                             dateMessage = `Habit logged for a past date: ${formattedDate}`;
                         } else {

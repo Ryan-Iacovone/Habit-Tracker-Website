@@ -18,13 +18,30 @@ import pandas as pd
 
 app = Flask(__name__)
 
+# Load the workouts table list from the db
+DATABASE = "habits.db"
+
+conn = sqlite3.connect(DATABASE)
+cursor = conn.cursor()
+cursor.execute("SELECT work_list FROM workout_exercises")
+result = cursor.fetchone() # only fetches one row from db
+conn.close()
+
+workout_list = sorted(json.loads(result[0]), key=str.lower) # lower the str because otherwise puts emphasis on capital letters
+
+# NEXT STEP IS TO FIGURE HOW TO HANDLE NEW WORKOUTS AND ADDING THEM TO THE Db
+
+
 # List of habits and their associated questions
 HABITS = {
     "workout": {
         "questions": [
             # Add date selector as the first question for all habits
             {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
-            {"id": "workout_type", "text": "Exercise:", "type": "text", "required": True},
+            {"id": "workout_type", "text": "Exercise:", "type": "select", "required": True, "options":workout_list},
+            {"id": "new_workout", "text": "If 'other', specify new workout:", "type": "text", "conditional": {"field": "workout_type", "value": "Other"}},
+            
+
             {"id": "weight", "text": "Weight:", "type": "number", "required": True},
             {"id": "sets", "text": "Sets:", "type": "number", "required": True},
             {"id": "reps", "text": "Reps:", "type": "number", "required": True},
@@ -65,8 +82,6 @@ HABITS = {
         ]
     }
 }
-
-DATABASE = "habits.db"
 
 def init_db():
     """Initialize the SQLite database and create the habits table."""
