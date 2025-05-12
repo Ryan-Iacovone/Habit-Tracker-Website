@@ -5,3 +5,7 @@ docker-compose up --build
 to tear it down from docker run:
 
 docker compose down
+
+Apple health data example kaggle:
+
+https://www.kaggle.com/code/danpresil1/extracting-data-from-apple-health-app-s-export-xml/notebook

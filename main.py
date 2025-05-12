@@ -1,45 +1,86 @@
-from visualization import generate_matlotlib, generate_seaborn, generate_plotly
+# Standard Library
 import os
-from flask import send_file
-from flask import Flask, render_template, request, jsonify
-import sqlite3
-from datetime import datetime, timedelta
+import io
 import json
+import base64
+from datetime import datetime, timedelta 
+
+# Flask
+from flask import Flask, render_template, request, jsonify, send_file
+
+# Data Handling
+import pandas as pd
+import numpy as np
+from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, Text, Date, DateTime, func, insert
+
+# Visualization
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
-import os
-from flask import send_file
 import plotly.graph_objs as go
 import plotly.io as pio
-import io
-import base64
-import pandas as pd 
+from visualization import generate_matlotlib, generate_seaborn, generate_plotly, specific_exercise_filter, get_kpi_stats
+
 
 app = Flask(__name__)
 
-# Load the workouts table list from the db
-DATABASE = "habits.db"
-
-conn = sqlite3.connect(DATABASE)
-cursor = conn.cursor()
-cursor.execute("SELECT work_list FROM workout_exercises")
-result = cursor.fetchone() # only fetches one row from db
-conn.close()
-
-workout_list = sorted(json.loads(result[0]), key=str.lower) # lower the str because otherwise puts emphasis on capital letters
-
-# NEXT STEP IS TO FIGURE HOW TO HANDLE NEW WORKOUTS AND ADDING THEM TO THE Db
+# Initializing the SQLite database link for the entire app
+DATABASE = 'habits.db'
 
 
-# List of habits and their associated questions
+# Update the list of book titles table in my database with any potential new entries
+def load_book_options():
+    engine = create_engine(f"sqlite:///{DATABASE}")
+
+    # read_sql_query simple 
+    with engine.connect() as connection:
+        whole_table = pd.read_sql_query(
+            text("""SELECT * FROM habit_logs
+                WHERE habit_type = 'reading'"""), connection)
+        
+    # Realeasing the database connection
+    engine.dispose() 
+    
+    # Load the "data" column (which is a json string) into a pandas series because it's a singular column
+    df_parsed = whole_table["data"].apply(json.loads)
+
+    # Normalizing the json string into a pandas dataframe
+    df_expanded = pd.json_normalize(df_parsed)
+
+    # Grabbing unique book titles from the df and sorting them
+    book_titles = sorted(df_expanded["book_title"].unique().tolist())
+
+    # Add an "Other" option to the list of book titles because 'other' is not saved to the database
+    book_titles.append("Other") 
+
+    return book_titles
+
+
+def load_workout_options():
+    engine = create_engine(f"sqlite:///{DATABASE}")
+
+    # read_sql_query simple 
+    with engine.connect() as connection:
+        workouts = pd.read_sql_query(
+            text("""SELECT DISTINCT exercise FROM workouts"""), connection)
+
+    engine.dispose()
+
+    workouts_list = sorted(workouts["Exercise"].tolist())
+
+    # Add "Other" option to the list of book titles and works. This way other is not saved to the database
+    workouts_list.append("Other")
+
+    return workouts_list
+
+
+# List of habits I want to document and their associated questions
 HABITS = {
     "workout": {
         "questions": [
             # Add date selector as the first question for all habits
             {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
-            {"id": "workout_type", "text": "Exercise:", "type": "select", "required": True, "options":workout_list},
-            {"id": "new_workout", "text": "If 'other', specify new workout:", "type": "text", "conditional": {"field": "workout_type", "value": "Other"}},
+            {"id": "workout_type", "text": "Exercise:", "type": "select", "required": True, "options": load_workout_options()},
+            {"id": "new_workout", "text": "What new workout would you like to log?", "type": "text", "conditional": {"field": "workout_type", "value": "Other"}},
             
 
             {"id": "weight", "text": "Weight:", "type": "number", "required": True},
@@ -60,18 +101,9 @@ HABITS = {
     "reading": {
         "questions": [
             {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
-            {"id": "book_title", "text": "What book did you read?", "type": "select", 
-             "options": [
-                 "1984", 
-                 "Atomic Habits",
-                 "The Hobbit",
-                 "The Fifth Season",
-                 "Blood Over Bright Haven",
-                 "Foundryside",
-                 "Other"
-             ]},
-            {"id": "custom_title", "text": "If Other, specify book title:", "type": "text", "conditional": {"field": "book_title", "value": "Other"}},
-            {"id": "pages", "text": "How many pages did you read?", "type": "number"}
+            {"id": "book_title", "text": "What book did you read?", "type": "select", "options": load_book_options()},
+            {"id": "custom_title", "text": "What new book would you like to log?", "type": "text", "conditional": {"field": "book_title", "value": "Other"}},
+            {"id": "pages", "text": "How many pages did you read?", "type": "number", "required": True}
         ]
     },
     "stretch": {
@@ -83,18 +115,22 @@ HABITS = {
     }
 }
 
+
 def init_db():
-    """Initialize the SQLite database and create the habits table."""
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS habit_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            habit_type TEXT,
-            data TEXT,
-            log_date DATE,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    conn.commit()
-    conn.close()
+    engine = create_engine(f"sqlite:///{DATABASE}")
+    metadata = MetaData()
+
+    habit_logs = Table(
+        "habit_logs", metadata,
+        Column("id", Integer, primary_key=True, autoincrement=True),
+        Column("habit_type", String),
+        Column("data", Text),
+        Column("log_date", Date),
+        Column("timestamp", DateTime, server_default=func.current_timestamp()))
+
+    # Create the table if it doesn't exist
+    metadata.create_all(engine)
+    engine.dispose()
 
 @app.route('/')
 def index():
@@ -109,7 +145,7 @@ def get_questions():
 
 @app.route('/submit_habit', methods=['POST'])
 def submit_habit():
-    """Receive form data and store it in SQLite with user-specified date and server timestamp."""
+    """Receive form data, clean some inputs, and then store it in my SQL lite db"""
     try:
         data = request.form.to_dict()
         habit_type = data.pop('habit_type', 'unknown')
@@ -119,13 +155,30 @@ def submit_habit():
 
         ### What I also imagine I can do here is parse the rest of the form data, clean it, and then direct it out to the appropriate table in the database. ###
         
-        # Special handling for book titles
-        if habit_type == "reading" and "book_title" in data:
-            if data["book_title"] == "Other" and "custom_title" in data and data["custom_title"].strip():
+        # New book titles special handling into the database
+        if habit_type == "reading":
+            if data["book_title"] == "Other" and "custom_title" in data:
                 # Replace "Other" with the custom title
                 data["book_title"] = data["custom_title"]
                 # Remove the custom_title field
                 data.pop("custom_title", None)
+
+            # Cleans up data by removing the custom book title from json 
+            if data["book_title"] != "Other":
+                # Remove the custom_title field
+                data.pop("custom_title", None)
+        
+        # New workouts special handling into the database
+        if habit_type == "workout":
+            if data["workout_type"] == "Other" and "new_workout" in data:
+                # Replace the new_wokrout variable with the standard workout_type 
+                data["workout_type"] = data["new_workout"]
+                # Remove the new_workout field
+                data.pop("new_workout", None)
+
+            # Cleans up data by removing the new_workout variable from json  
+            if data["workout_type"] != "Other":
+                data.pop("new_workout", None)
 
         # Convert form data to a JSON string for better storage
         data_str = json.dumps(data)
@@ -134,14 +187,17 @@ def submit_habit():
         server_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Insert data into SQLite with both the log date and server timestamp
-        conn = sqlite3.connect(DATABASE)
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO habit_logs (habit_type, data, log_date, timestamp)
-            VALUES (?, ?, ?, ?)
-        ''', (habit_type, data_str, habit_date, server_timestamp))
-        conn.commit()
-        conn.close()
+        engine = create_engine(f"sqlite:///{DATABASE}")
+
+        with engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO habit_logs (habit_type, data, log_date, timestamp) VALUES (:habit_type, :data, :log_date, :timestamp)"),
+                {"habit_type": habit_type,
+                    "data": data_str,
+                    "log_date": habit_date,
+                    "timestamp": server_timestamp})
+        
+        engine.dispose()
 
         return jsonify({
             "status": "success", 
@@ -159,18 +215,48 @@ def submit_habit():
             "message": str(e)
         }), 500
     
-@app.route('/visualizations')
-def visualization_page():
-    matplotlib_plot_url= generate_matlotlib()
+
+@app.route('/dynamic_visualizations', methods=['GET', 'POST'])
+def dynamic_visualization_page():
+     # Default selection or user-submitted one
+    selected_exercise = request.form.get('exercise')
+
+    # specific_exercise_filter function comes from the visualization.py
+    df_html_table = specific_exercise_filter(selected_exercise)
+
+    # Get unique exercises for dropdown
+    engine = create_engine("sqlite:///habits.db") 
+    with engine.connect() as connection:
+        workouts = pd.read_sql_query(
+            text("SELECT DISTINCT Exercise FROM workouts" 
+        "         ORDER BY Exercise"), connection)
+        exercise_options = workouts['Exercise'].dropna().tolist()
+
+    return render_template('dynamic_visualizations.html',
+                           df_html_table=df_html_table,
+                           exercise_options=exercise_options,
+                           selected_exercise=selected_exercise)
+
+
+@app.route('/static_visualizations', methods=['GET', 'POST'])
+def static_visualization_page():
+    matplotlib_plot_url = generate_matlotlib()
     seaborn_plot_url = generate_seaborn()  
     plotly_html = generate_plotly()
 
-    return render_template('visualizations.html',
-                           matplotlib_plot_url=matplotlib_plot_url,
-                           seaborn_plot_url=seaborn_plot_url,
-                           plotly_html=plotly_html)
+    ytd_count, mtd_count, prev_month_count, days_per_month_html, workouts_by_month_html = get_kpi_stats()
+
+    return render_template('static_visualizations.html',
+                          ytd_count=ytd_count,
+                          mtd_count=mtd_count,
+                          prev_month_count=prev_month_count,
+                          days_per_month_html=days_per_month_html,
+                          workouts_by_month_html=workouts_by_month_html,
+                          matplotlib_plot_url=matplotlib_plot_url,
+                          seaborn_plot_url=seaborn_plot_url,
+                          plotly_html=plotly_html)
 
 
 if __name__ == '__main__':
     init_db()  # Initialize database when the app starts
-    app.run(debug=True, host="0.0.0.0", port=8080)
+    app.run(debug=True, host="0.0.0.0", port=8501)

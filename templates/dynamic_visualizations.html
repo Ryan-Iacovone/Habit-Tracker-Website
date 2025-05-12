@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dynamic Visualization Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+            max-width: 900px;
+            margin: auto;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        h2 {
+            margin-top: 0;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    /* Styling for pandas DataFrame table */
+        .workout-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            margin: 25px 0;
+            font-size: 0.9em;
+        }
+        .workout-table thead th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            text-align: left;
+        }
+        .workout-table tbody tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .workout-table tbody td {
+            border: 1px solid #ddd;
+            padding: 8px 15px;
+        }
+        .workout-table tbody tr:hover {
+            background-color: #e6f7e6;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Dynamic Visualization Dashboard</h1>
+    </div>
+        <a href="/" class="back-link">← Back to Habit Tracker input</a>
+    </div>
+    <div class="section">
+        <h2>Filter by Exercise</h2>
+        <form method="POST" id="exercise-form">
+            <label for="exercise">Exercise:</label>
+            <select name="exercise" id="exercise" onchange="this.form.submit()">
+                {% for exercise in exercise_options %}
+                    <option value="{{ exercise }}" {% if exercise == selected_exercise %}selected{% endif %}>
+                        {{ exercise }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+    <div class="section">
+        <h2>Filtered Workout Table</h2>
+        {{ df_html_table | safe }}
+    </div>
+</body>
+</html>

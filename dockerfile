@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port Streamlit uses
-EXPOSE 8080
+EXPOSE 8501
 
 # Command left empty because it's handled in the docker-compose file
 CMD []

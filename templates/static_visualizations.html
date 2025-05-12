@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Visualization Dashboard</title>
+    <style>
+        /* Essential Base Styling */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        
+        /* Basic Section Container */
+        .section {
+            background: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        
+        /* Simple Flex Container */
+        .flex-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        /* KPI Cards - Basic */
+        .kpi-section {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .kpi-card {
+            background: white;
+            padding: 15px;
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .kpi-title {
+            font-size: 16px;
+            color: #666;
+        }
+        
+        .kpi-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        /* Simple color indicators */
+        .positive-change { color: green; }
+        .negative-change { color: red; }
+        
+        /* Basic Table Styling */
+        .workout-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .workout-table th {
+            background-color: #f2f2f2;
+            text-align: left;
+            padding: 8px;
+        }
+        
+        .workout-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        
+        /* Plot boxes */
+        .plot-box {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .plot-box img {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Workout Tracking Dashboard</h1>
+    <a href="/">← Back to Habit Tracker input</a>
+
+    <!-- KPI Metrics Section -->
+    <div class="section">
+        <h2>Performance Metrics</h2>
+        <div class="kpi-section">
+            <div class="kpi-card">
+                <div class="kpi-title">Year-to-Date Workouts</div>
+                <div class="kpi-value">{{ ytd_count }}</div>
+                <div>Total workouts this year</div>
+            </div>
+            
+            <div class="kpi-card">
+                <div class="kpi-title">Month-to-Date Workouts</div>
+                <div class="kpi-value">{{ mtd_count }}</div>
+                <div>Workouts this month</div>
+            </div>
+            
+            <div class="kpi-card">
+                <div class="kpi-title">Previous Month</div>
+                <div class="kpi-value">{{ prev_month_count }}</div>
+                <div>Total workouts last month</div>
+            </div>        
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="section flex-container">
+        <div class="plot-box">
+            <h2>Workouts by Month and Year</h2>
+            {{ workouts_by_month_html | safe }}
+        </div>
+        <div class="plot-box">
+            <h2>Days Exercised per Month</h2>
+            {{ days_per_month_html | safe }}
+        </div>
+    </div>
+
+    <!-- Visualization Section -->
+    <div class="section flex-container">
+        <div class="plot-box">
+            <h2>Workout Trends</h2>
+            <img src="{{ matplotlib_plot_url }}" alt="Matplotlib Plot">
+        </div>
+        <div class="plot-box">
+            <h2>Exercise Distribution</h2>
+            <img src="{{ seaborn_plot_url }}" alt="Seaborn Plot">
+        </div>
+    </div>    
+
+    <div class="section">
+        <h2>Interactive Workout Analysis</h2>
+        {{ plotly_html | safe }}
+    </div>
+</body>
+</html>
