@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib
+import plotly.express as px
 import seaborn as sns
 import numpy as np
 import os
@@ -11,138 +12,168 @@ import base64
 import pandas as pd
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, Text, Date, DateTime, func, insert
+from plotnine import *
+from Data_Cleaning import Read_Apple_Workouts, gen_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df
 
 matplotlib.use('Agg')  # use non-GUI backend for Flask app
 
-def generate_matlotlib(): 
-    plt.figure(figsize=(8, 4))
-    x = range(10)
-    y = [i**2 for i in x]
-    plt.plot(x, y, marker='o')
-    plt.title('Static Plot: Squares')
-    plt.xlabel('x')
-    plt.ylabel('y')
+# Database configuration details - IDK if this is even needed?
+def create_sql_engine():
+    # Create a SQLAlchemy engine to connect to the SQLite database
+    Database = "habits.db" 
+    engine = create_engine(f"sqlite:///{Database}")
+    return engine
 
-    # Save static plot to bytes
+# Apple workout data from data_cleaning file
+aw_final = Read_Apple_Workouts()
+
+############### Frequency bar chart grouped by exercise type ###############
+full_count_data = gen_freq_df(aw_final)
+
+def Freq_BarChart():
+    plot = (ggplot(full_count_data, aes(x='month', y='n', fill='activity')) +
+        geom_bar(stat='identity', position='dodge') +
+        geom_text(aes(label='n'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment 
+        #geom_hline(aes(yintercept='goal', color='activity'), linetype='dashed') +
+        scale_fill_brewer(type='qual', palette='Set1') +
+        #scale_color_manual(values={'Running': 'black', 'Cycling': 'gray'}) +
+        scale_y_continuous(breaks = range(0, 16),
+                        limits = [0, 15]) +
+        scale_x_discrete(labels=lambda l: [pd.Period(p).strftime('%b %Y') for p in l]) +  #  idk how it works but it does
+
+        labs(title='Workout Frequency by Month and Activity',
+            x='Month',
+            y='Number of Sessions',
+            fill='Activity',
+            color='Goal') +
+        #theme_matplotlib() +
+        theme_seaborn() +
+        theme(figure_size=(10, 5)))
+
+    # Render plot to a matplotlib figure
+    fig = plot.draw()
+
+    # Save figure to buffer
     static_bytes = io.BytesIO()
-    plt.savefig(static_bytes, format='png')
+    fig.savefig(static_bytes, format='png', bbox_inches='tight')
     static_bytes.seek(0)
     static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
-    matplotlib_plot_url = f"data:image/png;base64,{static_base64}"
-    plt.close()
+    frequency_plot_url = f"data:image/png;base64,{static_base64}"
+    plt.close(fig)
 
-    return matplotlib_plot_url
+    return frequency_plot_url
 
-def generate_seaborn():
-    sns.set_theme(style="ticks", palette="pastel")
 
-    # Load the example tips dataset
-    tips = sns.load_dataset("tips")
+############### Distance per week grouped by exercise type ###############
+full_miles_week = gen_distance_df(aw_final)
 
-    # Draw a nested boxplot to show bills by day and time
-    plt.figure(figsize=(8, 4))  # Optional: ensure consistent sizing
-    sns.boxplot(x="day", y="total_bill",
-                hue="smoker", palette=["m", "g"],
-                data=tips)
-    sns.despine(offset=10, trim=True)
+def Distance_BarChart():
+    plot = (
+    ggplot(full_miles_week, aes(x='week_label', y='Total_Miles', fill='activity')) +
+    geom_bar(stat='identity', position='dodge') +
+    geom_text(aes(label='Total_Miles'), position=position_dodge(width=0.9), va='bottom') +
+    labs(title= "Miles per Week by Activity",
+         x="Week",
+         y="Miles") +
+    theme_seaborn() +
+    theme(
+        figure_size=(10, 5),
+        axis_text_x=element_text(angle=20, hjust=1)))
 
-    # Save static plot to bytes
+    # Render plot to a matplotlib figure
+    fig = plot.draw()
+
+    # Save figure to buffer
     static_bytes = io.BytesIO()
-    plt.savefig(static_bytes, format='png')
+    fig.savefig(static_bytes, format='png', bbox_inches='tight')
     static_bytes.seek(0)
     static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
-    seaborn_plot_url = f"data:image/png;base64,{static_base64}"
-    plt.close()
+    distance_plot_url = f"data:image/png;base64,{static_base64}"
+    plt.close(fig)
 
-    return seaborn_plot_url
-
-def generate_plotly():
-    dates = pd.date_range(end=datetime.today(), periods=30)
-    habit_counts = np.random.randint(0, 5, size=30)
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=dates,
-        y=habit_counts,
-        mode='lines+markers',
-        name='Habit Check-ins',
-        line=dict(color='royalblue', width=2),
-        marker=dict(size=6)
-    ))
-    fig.update_layout(
-        title='Interactive Plot: Habit Check-ins Over 30 Days',
-        xaxis_title='Date',
-        yaxis_title='Check-ins',
-        template='plotly_white',
-        autosize=True,
-        height=500
-    ) 
-    plotly_html = pio.to_html(fig, full_html=False)
-
-    return plotly_html
-
-# Generates a table for the dynamic exercise filter page 
-def specific_exercise_filter(specific_exercise):
-    engine = create_engine("sqlite:///habits.db")
-    with engine.connect() as connection:
-        # Use SQLAlchemy's text() to safely parameterize the query
-        workouts = pd.read_sql_query(
-            text("SELECT * FROM workouts WHERE exercise = :activity"),
-            connection,
-            params={"activity": specific_exercise}  # Correct parameter name to match function argument
-        )
-    engine.dispose()
-    return workouts.to_html(classes='workout-table', index=False, border=1)
+    return distance_plot_url
 
 
-def get_kpi_stats():
+############### Minutes per week grouped by cardio and biking ###############
+full_mins_week = gen_mins_df(aw_final)
 
-    # Initializing the SQLite database link
-    DATABASE = 'habits.db'
-    engine = create_engine(f"sqlite:///{DATABASE}")
+def Minutes_BarChart():
+    plot = (ggplot(full_mins_week, aes(x='week_period', y='Total_min', fill='activity_type')) +
+        geom_bar(stat='identity', position='dodge') +
+        geom_text(aes(label='Total_min'), format_string='{:.1f}', position=position_dodge(width=5), va='bottom') +
+        scale_x_datetime(date_labels='%b %d', date_breaks='1 week') +  # Optional, for clean weekly ticks
+        geom_hline(aes(yintercept=150, color='activity_type'), linetype='dashed', size=1) + # Cardio goal
+        geom_hline(aes(yintercept=80, color='activity_type'), linetype='dashed', size=1) + # Weights goal
+        labs(title= "Minutes per Week by Activity",
+            x="Week",
+            y="Minutes") +
+        theme_seaborn() +
+        theme(figure_size=(10, 5),
+                axis_text_x = element_text(angle = 20, hjust = 1)))
+    
+    # Render plot to a matplotlib figure
+    fig = plot.draw()
 
-    # Read workouts data from database
-    with engine.connect() as connection:
-        workout_df = pd.read_sql_query(text("SELECT * FROM workouts"), connection)
+    # Save figure to buffer
+    static_bytes = io.BytesIO()
+    fig.savefig(static_bytes, format='png', bbox_inches='tight')
+    static_bytes.seek(0)
+    static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
+    mins_plot_url = f"data:image/png;base64,{static_base64}"
+    plt.close(fig)
 
-    # Ensure timestamp is in datetime format
-    workout_df['Timestamp'] = pd.to_datetime(workout_df['Timestamp'])
+    return mins_plot_url
 
-    workout_df['month'] = workout_df['Timestamp'].dt.month_name()
-    workout_df['year'] = workout_df['Timestamp'].dt.year
-    workout_df['date'] = workout_df['Timestamp'].dt.date
+############### Minutes per week for all exercises ############### 
+workout_time = gen_workout_time_df(aw_final)
+ 
 
-    # Get current date and year/month details
-    current_date = pd.Timestamp.now()
-    current_year = current_date.year
-    current_month = current_date.month
+def Minutes_LineGraph():
+    plot = (ggplot(workout_time, aes(x='week_period', y='Time')) +
+        geom_line(color = "blue", size = 1) +
+        geom_point(aes(size = "n"), alpha = 0.6, color = "blue") +
+        geom_text(aes(label='n'), format_string='{:.0f}', va='bottom') +
+        labs(title= "Minutes per Week by Activity",
+            x="Week",
+            y="Minutes") +
+        scale_x_datetime(date_labels='%b %d', date_breaks='1 week') +
+        
+        theme_seaborn() +
+        theme(panel_grid_minor_y = element_line(color = "gray", linetype = "dotted"),
+            figure_size=(10, 5),
+            axis_text_x=element_text(angle=25, hjust=1),
+            legend_position='none',
+            axis_ticks_minor_x=element_blank()))
 
-    # Calculate Year-to-Date count
-    ytd_count = len(workout_df[workout_df['year'] == current_year])
+    # Render plot to a matplotlib figure
+    fig = plot.draw()
 
-    # Calculate Month-to-Date count
-    mtd_count = len(workout_df[(workout_df['year'] == current_year) & 
-                        (workout_df['month'] == current_date.month_name())])
+    # Save figure to buffer
+    static_bytes = io.BytesIO()
+    fig.savefig(static_bytes, format='png', bbox_inches='tight')
+    static_bytes.seek(0)
+    static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
+    total_mins_plot_url = f"data:image/png;base64,{static_base64}"
+    plt.close(fig)
 
-    # You can also calculate previous month's total for comparison
-    prev_month = current_month - 1 if current_month > 1 else 12
-    year = current_year if current_month > 1 else current_year - 1
+    return total_mins_plot_url
 
-    prev_month_count = len(workout_df[(workout_df['Timestamp'].dt.year == year) & 
-                                    (workout_df['Timestamp'].dt.month == prev_month)])
 
-    # MTD Workouts w/ tagerts
 
-    # Excersies per workout avg
+############### Activity Treemap ############### 
+activity_distribution = gen_activity_treemap_df(aw_final)
 
-    # days exercised by month
-    workouts_by_month_df = workout_df.groupby(['month', 'year']).agg({'Timestamp': 'count'})
+def activity_treemap():
+    # Create treemap
+    fig = px.treemap(
+        activity_distribution,
+        path=['label'],         # use custom label for full text
+        values='count',
+        color='count',
+        color_continuous_scale='Blues')
+    
+    fig.update_layout(showlegend=False, coloraxis_showscale=False)
 
-    # Days exercised by month
-    days_per_month_df = workout_df.groupby(['date', 'month']).agg({'Timestamp': 'count'}).groupby(['month']).agg({'Timestamp': 'count'})
+    treemap_plotly_html = pio.to_html(fig, full_html=False)
 
-    # Format your DataFrame tables as HTML with styling
-    days_per_month_html = days_per_month_df.to_html(classes='workout-table', index=True, border=0)
-    workouts_by_month_html = workouts_by_month_df.to_html(classes='workout-table', index=True, border=0)
-
-    return ytd_count, mtd_count, prev_month_count, days_per_month_html, workouts_by_month_html
+    return treemap_plotly_html

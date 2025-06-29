@@ -1,0 +1,10 @@
+KPI wants:
+	1. grouped bar chart month on x axis and y axis is excerise count by exercise type  
+	2. Some sort of goal metric for this months exercises potentially by excerise type, or total or average time/calories burned
+	3. # miles ran, biles, yards swan per week + time spent on each
+	4. Time spent cardio training and time spent weight training (with govt goals)
+
+Page with high level goals that I can drill down into to get more and more specific results. 
+(Maybe health, mental, education  
+	1. For example, like for my health related goals I'll have strength/weight training, cardio, and flexability.
+		1a. and then within cardio I'll have running, biking, and swimming metrics 

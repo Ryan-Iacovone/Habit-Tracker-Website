@@ -12,13 +12,15 @@ from flask import Flask, render_template, request, jsonify, send_file
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, Text, Date, DateTime, func, insert
+from Data_Cleaning import load_book_options, load_workout_options, generate_excise_options, \
+specific_exercise_filter, get_kpi_stats # only a df with options for a dropdown
 
-# Visualization
+# Visualizations
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.graph_objs as go
 import plotly.io as pio
-from visualization import generate_matlotlib, generate_seaborn, generate_plotly, specific_exercise_filter, get_kpi_stats
+from visualization import Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap
 
 
 app = Flask(__name__)
@@ -27,53 +29,10 @@ app = Flask(__name__)
 DATABASE = 'habits.db'
 
 
-# Update the list of book titles table in my database with any potential new entries
-def load_book_options():
-    engine = create_engine(f"sqlite:///{DATABASE}")
-
-    # read_sql_query simple 
-    with engine.connect() as connection:
-        whole_table = pd.read_sql_query(
-            text("""SELECT * FROM habit_logs
-                WHERE habit_type = 'reading'"""), connection)
-        
-    # Realeasing the database connection
-    engine.dispose() 
-    
-    # Load the "data" column (which is a json string) into a pandas series because it's a singular column
-    df_parsed = whole_table["data"].apply(json.loads)
-
-    # Normalizing the json string into a pandas dataframe
-    df_expanded = pd.json_normalize(df_parsed)
-
-    # Grabbing unique book titles from the df and sorting them
-    book_titles = sorted(df_expanded["book_title"].unique().tolist())
-
-    # Add an "Other" option to the list of book titles because 'other' is not saved to the database
-    book_titles.append("Other") 
-
-    return book_titles
-
-
-def load_workout_options():
-    engine = create_engine(f"sqlite:///{DATABASE}")
-
-    # read_sql_query simple 
-    with engine.connect() as connection:
-        workouts = pd.read_sql_query(
-            text("""SELECT DISTINCT exercise FROM workouts"""), connection)
-
-    engine.dispose()
-
-    workouts_list = sorted(workouts["Exercise"].tolist())
-
-    # Add "Other" option to the list of book titles and works. This way other is not saved to the database
-    workouts_list.append("Other")
-
-    return workouts_list
-
-
 # List of habits I want to document and their associated questions
+
+######## Consideratding adding a new movie/show and new food meal habit to start doing more of that ########
+
 HABITS = {
     "workout": {
         "questions": [
@@ -82,11 +41,11 @@ HABITS = {
             {"id": "workout_type", "text": "Exercise:", "type": "select", "required": True, "options": load_workout_options()},
             {"id": "new_workout", "text": "What new workout would you like to log?", "type": "text", "conditional": {"field": "workout_type", "value": "Other"}},
             
-
             {"id": "weight", "text": "Weight:", "type": "number", "required": True},
             {"id": "sets", "text": "Sets:", "type": "number", "required": True},
             {"id": "reps", "text": "Reps:", "type": "number", "required": True},
             {"id": "effort", "text": "Effort Level", "type": "range", "min": 1, "max": 10, "required": True},
+            {"id": "10RM", "text": "10RM Workout?", "type": "checkbox"},
             {"id": "comment", "text": "Notes:", "type": "text"}
         ]
     },
@@ -180,6 +139,10 @@ def submit_habit():
             if data["workout_type"] != "Other":
                 data.pop("new_workout", None)
 
+            # Adds 10Rm suffix to workout name if the 10RM checkbox is checked
+            if data["10RM"] == "on":
+                data["workout_type"] = data['workout_type'] + " 10RM"
+
         # Convert form data to a JSON string for better storage
         data_str = json.dumps(data)
 
@@ -216,45 +179,55 @@ def submit_habit():
         }), 500
     
 
-@app.route('/dynamic_visualizations', methods=['GET', 'POST'])
-def dynamic_visualization_page():
+@app.route('/exercise_filter', methods=['GET', 'POST'])
+def exercise_filter_page(): 
      # Default selection or user-submitted one
     selected_exercise = request.form.get('exercise')
 
     # specific_exercise_filter function comes from the visualization.py
     df_html_table = specific_exercise_filter(selected_exercise)
 
-    # Get unique exercises for dropdown
-    engine = create_engine("sqlite:///habits.db") 
-    with engine.connect() as connection:
-        workouts = pd.read_sql_query(
-            text("SELECT DISTINCT Exercise FROM workouts" 
-        "         ORDER BY Exercise"), connection)
-        exercise_options = workouts['Exercise'].dropna().tolist()
+    exercise_options = generate_excise_options()
 
-    return render_template('dynamic_visualizations.html',
+
+    return render_template('exercise_filter.html',
                            df_html_table=df_html_table,
                            exercise_options=exercise_options,
                            selected_exercise=selected_exercise)
 
 
-@app.route('/static_visualizations', methods=['GET', 'POST'])
-def static_visualization_page():
-    matplotlib_plot_url = generate_matlotlib()
-    seaborn_plot_url = generate_seaborn()  
-    plotly_html = generate_plotly()
+@app.route('/overview_visualizations', methods=['GET', 'POST'])
+def overview_visualization_page():
+    frequency_plot_url = Freq_BarChart()
+    distance_plot_url = Distance_BarChart()
+    mins_plot_url = Minutes_BarChart()
+    total_mins_plot_url = Minutes_LineGraph()  
+    treemap_plotly_html = activity_treemap()
 
-    ytd_count, mtd_count, prev_month_count, days_per_month_html, workouts_by_month_html = get_kpi_stats()
 
-    return render_template('static_visualizations.html',
-                          ytd_count=ytd_count,
-                          mtd_count=mtd_count,
-                          prev_month_count=prev_month_count,
-                          days_per_month_html=days_per_month_html,
-                          workouts_by_month_html=workouts_by_month_html,
-                          matplotlib_plot_url=matplotlib_plot_url,
-                          seaborn_plot_url=seaborn_plot_url,
-                          plotly_html=plotly_html)
+    workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg = get_kpi_stats()
+
+    return render_template('overview_visualizations.html',
+                          #KPIs 
+                          ytd_count = workout_count_year,
+                          mtd_count_LM = workout_count_LM,
+                          mtd_count = wokrout_count_CM,
+                          workout_time_avg=workout_time_hrs_avg,
+
+                          # Month names
+                          current_month_name=current_month_name, 
+                          last_month_name=last_month_name,
+
+                          # HTML Tables
+                          #days_per_month_html=days_per_month_html, 
+                          #workouts_by_month_html=workouts_by_month_html,
+
+                          # Plots 
+                          frequency_plot_url=frequency_plot_url,
+                          distance_plot_url=distance_plot_url,
+                          mins_plot_url=mins_plot_url,
+                          total_mins_plot_url=total_mins_plot_url,
+                          treemap_plotly_html = treemap_plotly_html)
 
 
 if __name__ == '__main__':

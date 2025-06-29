@@ -4,7 +4,7 @@ services:
   habit-tracker:
     build: .
     ports:
-      - "8501:8501"  # Maps container's port 8080 to host's 8080
+      - "8501:8501"  # Maps container's port 8501 to host's 8501
     volumes:
       - ./habits.db:/app/habits.db  # Mount the SQLite DB file from host into container
     working_dir: /app

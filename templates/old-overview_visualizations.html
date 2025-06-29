@@ -7,14 +7,25 @@
         /* Essential Base Styling */
         body {
             font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: auto;
-            padding: 20px;
+            min-height: 100vh;
+            width: 100vw;
             background: #f5f5f5;
+            padding: 0;
+            /* Remove max-width and margin: auto */
         }
         h1 {
             color: #333;
             text-align: center;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
         }
         
         /* Basic Section Container */
@@ -91,59 +102,57 @@
 </head>
 <body>
     <h1>Workout Tracking Dashboard</h1>
-    <a href="/">← Back to Habit Tracker input</a>
+    </div>
+        <a href="/" class="back-link">← Back to Habit Tracker input</a>
+    </div>
 
     <!-- KPI Metrics Section -->
     <div class="section">
         <h2>Performance Metrics</h2>
         <div class="kpi-section">
             <div class="kpi-card">
-                <div class="kpi-title">Year-to-Date Workouts</div>
+                <div class="kpi-title"> Total Workouts YTD: </div>
                 <div class="kpi-value">{{ ytd_count }}</div>
-                <div>Total workouts this year</div>
+                <!-- <div>Total workouts this year</div> -->
             </div>
             
             <div class="kpi-card">
-                <div class="kpi-title">Month-to-Date Workouts</div>
+                <div class="kpi-title"> {{ current_month_name }} MTD Workouts: </div>
                 <div class="kpi-value">{{ mtd_count }}</div>
-                <div>Workouts this month</div>
             </div>
             
             <div class="kpi-card">
-                <div class="kpi-title">Previous Month</div>
-                <div class="kpi-value">{{ prev_month_count }}</div>
-                <div>Total workouts last month</div>
-            </div>        
+                <div class="kpi-title"> {{ last_month_name }} Total Workouts: </div>
+                <div class="kpi-value">{{ mtd_count_LM }}</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-title">Average Weekly Workout Time: </div>
+                <div class="kpi-value">{{ workout_time_avg }} Mins</div>
+            </div>          
         </div>
     </div>
 
-    <!-- Table Section -->
+     <!-- Visualization Section -->
     <div class="section flex-container">
         <div class="plot-box">
-            <h2>Workouts by Month and Year</h2>
-            {{ workouts_by_month_html | safe }}
+            <h2>Workout Frequency</h2>
+            <img src="{{ frequency_plot_url }}" alt="Frequency Plot">
         </div>
         <div class="plot-box">
-            <h2>Days Exercised per Month</h2>
-            {{ days_per_month_html | safe }}
+            <h2>Distance Per Exercise</h2>
+            <img src="{{ distance_plot_url }}" alt="Distance Plot">
+        </div>
+        <div class="plot-box">
+            <h2>Minutes Per Exercise</h2>
+            <img src="{{ mins_plot_url }}" alt="Minutes Plot">
         </div>
     </div>
-
-    <!-- Visualization Section -->
-    <div class="section flex-container">
+        <div class="section flex-container">
         <div class="plot-box">
-            <h2>Workout Trends</h2>
-            <img src="{{ matplotlib_plot_url }}" alt="Matplotlib Plot">
+            <h2>Workout Frequency</h2>
+            <img src="{{ total_mins_plot_url }}" alt="Frequency Plot">
         </div>
-        <div class="plot-box">
-            <h2>Exercise Distribution</h2>
-            <img src="{{ seaborn_plot_url }}" alt="Seaborn Plot">
-        </div>
-    </div>    
-
-    <div class="section">
-        <h2>Interactive Workout Analysis</h2>
-        {{ plotly_html | safe }}
-    </div>
+    </div>      
 </body>
 </html>

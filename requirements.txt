@@ -5,3 +5,4 @@ flask
 gunicorn
 sqlalchemy
 plotly
+plotnine
