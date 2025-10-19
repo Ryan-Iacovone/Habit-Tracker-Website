@@ -83,6 +83,10 @@
 
         .kpi-card:nth-child(4) {
             background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        
+        }
+        .kpi-card:nth-child(5) {
+            background: linear-gradient(135deg, #e96a79 0%, #44584a 100%);
         }
         
         .kpi-title {
@@ -168,8 +172,13 @@
                 </div>
 
                 <div class="kpi-card">
-                    <div class="kpi-title">Average Weekly Workout Time</div>
+                    <div class="kpi-title">Avg Weekly Workout Time (L3M)</div>
                     <div class="kpi-value">{{ workout_time_avg }} <span style="font-size: 1rem;">Hours</span></div>
+                </div>
+                
+                <div class="kpi-card">
+                    <div class="kpi-title">Avg Daily Steps (L3M)</div>
+                    <div class="kpi-value">{{ steps_L3_mon }}</div>
                 </div>          
             </div>
         </div>
@@ -204,17 +213,14 @@
                 <div class="plot-box">
                     <h3>Training Balance by Discipline</h3>
                     <div class="plot-description">
-                        Shows the percentage breakdown of swim/bike/run/strength training. Essential for triathlon training to ensure you're maintaining proper balance across all three disciplines and not neglecting any area.
+                        Shows the percentage breakdown of swim/bike/run/strength training since March.
                     </div>
                     {{ treemap_plotly_html | safe }}
                 </div>
 
                 <div class="plot-box">
-                    <h3>Weekly Training Volume</h3>
-                    <img src="{{ weekly_volume_plot_url }}" alt="Weekly Volume Plot">
-                    <div class="plot-description">
-                        Displays total training hours per week over time. Helps track training load progression, identify peak training weeks, and ensure you're building volume gradually to avoid overtraining or injury.
-                    </div>
+                    <h3>Step Count </h3>
+                    <img src="{{ steps_boxplot_url }}" alt="Step Count Plot">
                 </div>
             </div>
         </div>

@@ -81,8 +81,47 @@
             text-align: center;
         }
         .nav-button:hover {
-            background-color: #0b7dda;
+            background-color: #0b7dda; 
         }
+        .tooltip {
+        position: relative;
+        display: inline-block;
+        border-bottom: 1px dotted black;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 220px;              /* wider for breathing room */
+            background-color: #333;    /* dark but softer */
+            color: #fff;
+            text-align: left;          /* left-align text for readability */
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            top: 120%;                 /* show below the label */
+            left: 50%;
+            transform: translateX(-50%); /* center under label */
+            line-height: 1.4;          /* add spacing between lines */
+            font-size: 14px;           /* slightly smaller text */
+            white-space: normal;       /* allow wrapping */
+        }
+
+        /* Add a subtle arrow pointing up */
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            bottom: 100%;   /* position above tooltip */
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: transparent transparent #333 transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+        visibility: visible;
+        }
+
     </style>
 </head>
 <body>
@@ -94,6 +133,7 @@
             <a href="/" class="nav-button">Home</a>
             <a href="/exercise_filter" class="nav-button">Exercise Filter</a>
             <a href="/overview_visualizations" class="nav-button">Overview Visuals</a>
+            <a href="/10rm_tracker" class="nav-button">10 RM Workouts</a>
         </div>
         
         <div id="habitSelectGroup" class="form-group">
@@ -205,7 +245,15 @@
                         
                         const label = document.createElement('label');
                         label.htmlFor = question.id;
-                        label.textContent = question.text;
+
+                        if (question.tooltip) {
+                            // Wrap label text with tooltip
+                            label.innerHTML = `<span class="tooltip">${question.text}
+                                                <span class="tooltiptext">${question.tooltip}</span>
+                                            </span>`;
+                        } else {
+                            label.textContent = question.text;
+                        }
                         formGroup.appendChild(label);
                         
                         let input;
@@ -235,6 +283,10 @@
                             // Set today's date as default for date inputs
                             if (question.type === 'date') {
                                 input.value = getTodayDateString();
+                            }
+
+                            if (question.type === 'number' && question.step) {
+                                input.step = question.step;
                             }
                             
                             if (question.type === 'range') {
