@@ -1,8 +1,0 @@
-matplotlib
-seaborn
-numpy
-flask 
-gunicorn
-sqlalchemy
-plotly
-plotnine
