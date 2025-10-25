@@ -1,11 +1,15 @@
-version: '3.8'
- 
+name: habit-website  # sets the Compose project name (Otherwise pulls from directory name)
 services:
-  habit-tracker:
+  habit-website:
+  
     build: .
+
     ports:
       - "8501:8501"  # Maps container's port 8501 to host's 8501
+
     volumes:
       - ./habits.db:/app/habits.db  # Mount the SQLite DB file from host into container
-    working_dir: /app
-    command: gunicorn -b 0.0.0.0:8501 main:app
+
+    working_dir: /app # Not needed here because in dockerfile
+
+    command: uv run main.py 
