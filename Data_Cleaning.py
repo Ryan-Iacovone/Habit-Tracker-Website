@@ -2,9 +2,10 @@ import pandas as pd
 from itertools import product
 from pandas.api.types import CategoricalDtype
 from sqlalchemy import create_engine, text
-import numpy as np
-import json
 from db import engine
+
+# Grab today's date once, then have it pass through each funtion
+today = pd.Timestamp.today()
 
 # Update the list of book titles table in my database with any potential new entries
 def load_book_options():
@@ -93,14 +94,10 @@ def fill_missing_combinations(
 
 
 ############### Frequency bar chart grouped by exercise type ###############
-def gen_freq_df(aw_final):
+def gen_freq_df(aw_final, filter1):
     activities = ["Walking", "Cycling", "TraditionalStrengthTraining", "Running", "Swimming"]
 
-    # Grab last 5 Months of data
-    today = pd.Timestamp.today()
-    l_5_m = (today - pd.DateOffset(months=7)).to_period('M')
-
-    df_counts = (aw_final[(aw_final['metric'] == 'Duration') & (aw_final['activity'].isin(activities)) & (aw_final['month'] > l_5_m)]
+    df_counts = (aw_final[(aw_final['metric'] == 'Duration') & (aw_final['activity'].isin(activities)) & (aw_final['month'] > filter1)]
         .groupby(['month', 'activity'])
         .size()
         .reset_index(name='n'))
@@ -128,8 +125,9 @@ def gen_freq_df(aw_final):
 
 
 ############### Distance per week grouped by exercise type ###############
-def gen_distance_df(aw_final):
-    miles_week = (aw_final[(aw_final['activity'].isin(['Running', 'Cycling'])) & (aw_final['metric'].str.contains("Distance")) & (aw_final['month'] > "2025-06")]
+def gen_distance_df(aw_final, filter2):
+
+    miles_week = (aw_final[(aw_final['activity'].isin(['Running', 'Cycling'])) & (aw_final['metric'].str.contains("Distance")) & (aw_final['StartDate'] >= filter2)]
         .groupby(['activity', 'week_period'])['value']
         .agg(Total_Miles='sum', n='count')  # compute both mean and count
         .round(2) # Round to 2 decimal places
@@ -142,7 +140,7 @@ def gen_distance_df(aw_final):
         time_col='week_period',
         category_col='activity',
         value_cols=['Total_Miles', 'n'],
-        time_filter=lambda df: df['month'] > "2025-06",
+        time_filter=lambda df: df['StartDate'] > filter2,
         category_values=['Running', 'Cycling'])
         
         # Create a string label for display
@@ -157,11 +155,12 @@ def gen_distance_df(aw_final):
 
 
 ############### Minutes per week grouped by cardio and weights ###############
-def gen_mins_df(aw_final):
+def gen_mins_df(aw_final, filter2):
+
     mins_week = (aw_final[
             (aw_final['activity_type'].notna()) &
             (aw_final['metric'] == "Duration") &
-            (aw_final['month'] > "2025-06")]
+            (aw_final['StartDate'] >= filter2)]
         .groupby(['activity_type', 'week_period'])['value']
         .agg(Total_min='sum', n='count')  # compute sum and count
         .round(2)  # Round to 2 decimal places
@@ -173,7 +172,7 @@ def gen_mins_df(aw_final):
         time_col='week_period',
         category_col='activity_type',
         value_cols=['Total_min', 'n'],
-        time_filter=lambda df: df['month'] > "2025-06",
+        time_filter=lambda df: df['StartDate'] > filter2,
         category_values=['Cardio', 'Weights'])
     
         
@@ -188,28 +187,23 @@ def gen_mins_df(aw_final):
 
 
 ############### Minutes per week for all exercises ############### 
-def gen_workout_time_df(aw_final):
-    workout_time = aw_final[(aw_final['StartDate'].dt.year >= 2025) & 
+def gen_workout_time_df(aw_final, filter1):
+    workout_time = aw_final[(aw_final['month'] > filter1) & 
                             (aw_final['metric'] == 'Duration')].groupby(['week_period'])['value'].agg(Time='sum', n='count').reset_index()
     workout_time['Time'] = workout_time['Time'].round(2)
 
     return workout_time
 
 
-############### Activity Treemap ############### 
-def gen_activity_treemap_df(aw_final):
+############### Activity Treemap ###############  
+def gen_activity_treemap_df(aw_final, filter2):
 
     activites = ['Running', 'Cycling', 'TraditionalStrengthTraining', 'Swimming']
-    
-    #Gathering 5 weeks ago statistic to filter treemap
-    today = pd.Timestamp.today() # IDk how this number doesn't match what's showing on my webpage
-    five_week_ago = (today - pd.DateOffset(weeks=5)).normalize() # Normalize sets the time to midnight
 
     activity_distribution = (aw_final[
             (aw_final['metric'] == "Duration") & 
-            (aw_final['activity'].isin(activites)) &   
-            (aw_final['month'] >= "2025-03")]
-            #(aw_final['StartDate'] >= five_week_ago)]
+            (aw_final['activity'].isin(activites)) & 
+            (aw_final['StartDate'] >= filter2)]
         .sort_values(by='StartDate', ascending=False)
         .groupby(['activity'])['value']
         .agg(count='count')
@@ -226,15 +220,16 @@ def gen_activity_treemap_df(aw_final):
 
 
 ############### Steps per day boxplot ###############
-def gen_steps_month_df():
+def gen_steps_month_df(filter3):
 
     # Read from SQLite and parse those columns as datetime
     with engine.connect() as connection:
         apple = pd.read_sql_query(
             text("""SELECT type, value, startDate, endDate 
                 FROM apple_data_raw
-                WHERE type = 'StepCount' AND value IS NOT NULL and startDate >= '2025-01-01'
+                WHERE type = 'StepCount' AND value IS NOT NULL and startDate >= :t_filter
                 ORDER BY startDate DESC"""), connection,
+            params={"t_filter": filter3},
             parse_dates=['startDate', 'endDate'])
         
 
@@ -262,8 +257,6 @@ def gen_steps_month_df():
 
 # Going to have to recreate this function with apple workout data
 def get_kpi_stats(steps_day):
-    # Get today's date
-    today = pd.Timestamp.today()
 
     # Get this month and last month as Periods
     this_month = today.to_period('M')
@@ -291,7 +284,6 @@ def get_kpi_stats(steps_day):
     last_month_name = (today - pd.DateOffset(months=1)).strftime('%B')  
 
     return workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg, steps_L3_mon
-
 
 
 

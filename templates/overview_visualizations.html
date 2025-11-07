@@ -209,19 +209,18 @@
                     <img src="{{ total_mins_plot_url }}" alt="Total Minutes Plot">
                 </div>
 
-                <!-- Two Additional Charts -->
+                
                 <div class="plot-box">
                     <h3>Training Balance by Discipline</h3>
-                    <div class="plot-description">
-                        Shows the percentage breakdown of swim/bike/run/strength training since March.
-                    </div>
+
                     {{ treemap_plotly_html | safe }}
                 </div>
-
+ 
                 <div class="plot-box">
                     <h3>Step Count </h3>
-                    <img src="{{ steps_boxplot_url }}" alt="Step Count Plot">
+                    <img src="{{ steps_boxplot_url }}" alt="Step Count Plot"> 
                 </div>
+                
             </div>
         </div>
     </div>

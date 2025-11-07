@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib
 import plotly.express as px
-import plotly.graph_objs as go
 import plotly.io as pio
 import io
 import base64
@@ -12,12 +11,21 @@ from Data_Cleaning import Read_Apple_Workouts, gen_freq_df, gen_distance_df, gen
 matplotlib.use('Agg')  # use non-GUI backend for Flask app
 
 
+# Grab today's date once, then have it pass through each funtion
+today = pd.Timestamp.today()
+
+# List of date filter calculations we can pass through
+l_3_m = (today - pd.DateOffset(weeks=14)).normalize() # Normalize sets the time to midnight
+l_7_m = (today - pd.DateOffset(months=7)).to_period('M') # 
+l_1_y = str((today - pd.DateOffset(months=12)).to_period('M')) # 
+
+
 # Apple workout data from data_cleaning file
 aw_final = Read_Apple_Workouts()
 
 
 ############### Frequency bar chart grouped by exercise type ###############
-full_count_data = gen_freq_df(aw_final)
+full_count_data = gen_freq_df(aw_final, l_7_m)
 
 def Freq_BarChart():
         
@@ -49,11 +57,11 @@ def Freq_BarChart():
     frequency_plot_url = f"data:image/png;base64,{static_base64}"
     plt.close(fig)
 
-    return frequency_plot_url
+    return frequency_plot_url 
 
 
 ############### Distance per week grouped by exercise type ###############
-full_miles_week = gen_distance_df(aw_final)
+full_miles_week = gen_distance_df(aw_final, l_3_m)
 
 def Distance_BarChart():
         
@@ -91,7 +99,7 @@ def Distance_BarChart():
 
 
 ############### Minutes per week grouped by cardio and weights ###############
-full_mins_week = gen_mins_df(aw_final)
+full_mins_week = gen_mins_df(aw_final, l_3_m)
 
 def Minutes_BarChart():
     plot = (ggplot(full_mins_week, aes(x='week_label', y='Total_min', fill='activity_type')) +
@@ -110,7 +118,7 @@ def Minutes_BarChart():
         
         labs(title= "Minutes per Week by Activity",
             x="",
-            y="Minutes",
+            y="Minutes", 
             fill="Activity") +
         
         theme_seaborn() +
@@ -131,7 +139,7 @@ def Minutes_BarChart():
     return mins_plot_url
 
 ############### Minutes per week for all exercises ############### 
-workout_time = gen_workout_time_df(aw_final)
+workout_time = gen_workout_time_df(aw_final, l_7_m)
  
 def Minutes_LineGraph():
     plot = (ggplot(workout_time, aes(x='week_period', y='Time')) +
@@ -165,7 +173,7 @@ def Minutes_LineGraph():
 
 
 ############### Step count grouped by month ############### 
-steps_day = gen_steps_month_df()
+steps_day = gen_steps_month_df(l_1_y)
 
 def Steps_Boxplot():
     plot = (
@@ -178,9 +186,9 @@ def Steps_Boxplot():
             x="", 
             y="Steps") +
 
-        scale_y_continuous(breaks = range(0, 22500, 2500),
-                        #minor_breaks=range(0, 36, 2),  # Can't do minor ticks 2.5 because int not float :(
-                        limits = [0, 20000]) +
+        scale_y_continuous(breaks = range(0, 32500, 5000),
+                        minor_breaks=range(0, 32500, 2500),  # Can't do minor ticks 2.5 because int not float :(
+                        limits = [0, 30000]) +
 
         theme_seaborn() +
 
@@ -205,7 +213,7 @@ def Steps_Boxplot():
 
 
 ############### Activity Treemap ############### 
-activity_distribution = gen_activity_treemap_df(aw_final)
+activity_distribution = gen_activity_treemap_df(aw_final, l_3_m)
 
 def activity_treemap():
     # Create treemap

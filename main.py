@@ -23,7 +23,7 @@ from Data_Cleaning import load_book_options, load_workout_options, generate_exci
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.io as pio
-from visualization import Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap, Steps_Boxplot
+from visualization import Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap, Steps_Boxplot, l_1_y
 
 
 app = Flask(__name__)
@@ -263,7 +263,7 @@ def overview_visualization_page():
     steps_boxplot_url = Steps_Boxplot()
 
     # Bringing in steps df primarily used in visualization section here for KPI analysis
-    steps_day = gen_steps_month_df()
+    steps_day = gen_steps_month_df(l_1_y)
 
     workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg, steps_L3_mon = get_kpi_stats(steps_day)
 
