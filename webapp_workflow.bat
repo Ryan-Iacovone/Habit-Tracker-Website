@@ -1,0 +1,13 @@
+@echo off
+echo Starting Docker container...
+docker start d0617f22de49
+
+echo Waiting for container to run...
+timeout /t 180 >nul
+
+echo Stopping Docker container...
+docker stop d0617f22de49
+timeout /t 5 >nul
+
+echo Putting computer to sleep...
+powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false)"

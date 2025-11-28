@@ -23,7 +23,7 @@ from Data_Cleaning import load_book_options, load_workout_options, generate_exci
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.io as pio
-from visualization import Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap, Steps_Boxplot, l_1_y
+from visualization import Monthly_Freq_BarChart, Weekly_Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap, Steps_Boxplot, l_1_y
 
 
 app = Flask(__name__)
@@ -255,10 +255,11 @@ def exercise_filter_page():
 
 @app.route('/overview_visualizations', methods=['GET', 'POST'])
 def overview_visualization_page():
-    frequency_plot_url = Freq_BarChart()
+    month_frequency_plot_url = Monthly_Freq_BarChart()
+    week_frequency_plot_url = Weekly_Freq_BarChart()
     distance_plot_url = Distance_BarChart()
     mins_plot_url = Minutes_BarChart()
-    total_mins_plot_url = Minutes_LineGraph()  
+    #total_mins_plot_url = Minutes_LineGraph()  
     treemap_plotly_html = activity_treemap()
     steps_boxplot_url = Steps_Boxplot()
 
@@ -284,16 +285,15 @@ def overview_visualization_page():
                           #workouts_by_month_html=workouts_by_month_html,
 
                           # Plots 
-                          frequency_plot_url=frequency_plot_url,
+                          month_frequency_plot_url=month_frequency_plot_url,
+                          week_frequency_plot_url=week_frequency_plot_url,
                           distance_plot_url=distance_plot_url,
                           mins_plot_url=mins_plot_url,
-                          total_mins_plot_url=total_mins_plot_url,
+                          #total_mins_plot_url=total_mins_plot_url,
                           treemap_plotly_html = treemap_plotly_html,
                           steps_boxplot_url = steps_boxplot_url)
 
 
-
-# Add this to your main.py file
 def init_10rm_db():
     """Initialize 10RM tracking tables"""
     with engine.begin() as conn:

@@ -93,8 +93,8 @@ def fill_missing_combinations(
     return filled_df.sort_values(by=[time_col, category_col]).reset_index(drop=True)
 
 
-############### Frequency bar chart grouped by exercise type ###############
-def gen_freq_df(aw_final, filter1):
+############### Frequency bar chart grouped by exercise type and month ###############
+def gen_month_freq_df(aw_final, filter1):
     activities = ["Walking", "Cycling", "TraditionalStrengthTraining", "Running", "Swimming"]
 
     df_counts = (aw_final[(aw_final['metric'] == 'Duration') & (aw_final['activity'].isin(activities)) & (aw_final['month'] > filter1)]
@@ -102,26 +102,62 @@ def gen_freq_df(aw_final, filter1):
         .size()
         .reset_index(name='n'))
     
-    full_count_data = fill_missing_combinations(
+    month_count_data = fill_missing_combinations(
         original_df=df_counts,
         aggregated_df=df_counts,
         time_col='month',
         category_col='activity',
         value_cols=['n'])
 
-    full_count_data['n'] = full_count_data['n'].astype(int)  # Convert to int for better readability
+    month_count_data['n'] = month_count_data['n'].astype(int)  # Convert to int for better readability
 
     # Create a string label for display
-    full_count_data['month_label'] = full_count_data['month'].dt.strftime('%b %Y')
+    month_count_data['month_label'] = month_count_data['month'].dt.strftime('%b %Y')
 
     # Set 'month_label' as a categorical(factor variable) with order based on 'month_period'
-    month_order = full_count_data.sort_values('month')['month_label'].unique()
-    full_count_data['month_label'] = pd.Categorical(full_count_data['month_label'], categories=month_order, ordered=True)  # Convert to int for better readability
+    month_order = month_count_data.sort_values('month')['month_label'].unique()
+    month_count_data['month_label'] = pd.Categorical(month_count_data['month_label'], categories=month_order, ordered=True)  # Convert to int for better readability
 
     # Adding a label for 'TraditionalStrengthTraining' top shorten it for the graph output
-    full_count_data['activity'] = full_count_data['activity'].replace({'TraditionalStrengthTraining': 'Weights'})
+    month_count_data['activity'] = month_count_data['activity'].replace({'TraditionalStrengthTraining': 'Weights'})
 
-    return full_count_data
+    return month_count_data
+
+
+
+############### Frequency bar chart grouped by exercise type and week ###############
+def gen_week_freq_df(aw_final, filter2):
+    activities = ["Walking", "Cycling", "TraditionalStrengthTraining", "Running", "Swimming"]
+
+    df_counts = (aw_final[(aw_final['metric'] == 'Duration') & (aw_final['activity'].isin(activities)) & (aw_final['StartDate'] >= filter2)]
+        .groupby(['week_period', 'activity'])
+        .size()
+        .reset_index(name='n'))
+    
+    week_count_data = fill_missing_combinations(
+        original_df=df_counts,
+        aggregated_df=df_counts,
+        time_col='week_period',
+        category_col='activity',
+        value_cols=['n'])
+
+    week_count_data['n'] = week_count_data['n'].astype(int)  # Convert to int for better readability
+
+    # Create a string label for display
+    week_count_data['week_label'] = week_count_data['week_period'].dt.strftime('%b %d')
+
+    # Set 'week_label' as a categorical(factor variable) with order based on 'week_period'
+    week_order = week_count_data.sort_values('week_period')['week_label'].unique()
+    week_count_data['week_label'] = pd.Categorical(week_count_data['week_label'], categories=week_order, ordered=True)
+
+    # Adding a label for 'TraditionalStrengthTraining' top shorten it for the graph output
+    week_count_data['activity'] = week_count_data['activity'].replace({'TraditionalStrengthTraining': 'Weights'})
+
+    return week_count_data
+
+
+
+
 
 
 ############### Distance per week grouped by exercise type ###############

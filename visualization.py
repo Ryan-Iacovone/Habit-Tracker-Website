@@ -6,7 +6,7 @@ import io
 import base64
 import pandas as pd 
 from plotnine import *
-from Data_Cleaning import Read_Apple_Workouts, gen_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df, gen_steps_month_df
+from Data_Cleaning import Read_Apple_Workouts, gen_month_freq_df, gen_week_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df, gen_steps_month_df
 
 matplotlib.use('Agg')  # use non-GUI backend for Flask app
 
@@ -24,12 +24,12 @@ l_1_y = str((today - pd.DateOffset(months=12)).to_period('M')) #
 aw_final = Read_Apple_Workouts()
 
 
-############### Frequency bar chart grouped by exercise type ###############
-full_count_data = gen_freq_df(aw_final, l_7_m)
+############### Frequency bar chart grouped by exercise type and month ###############
+month_count_data = gen_month_freq_df(aw_final, l_7_m)
 
-def Freq_BarChart():
+def Monthly_Freq_BarChart():
         
-    plot = (ggplot(full_count_data, aes(x='month_label', y='n', fill='activity')) +
+    plot = (ggplot(month_count_data, aes(x='month_label', y='n', fill='activity')) + 
         geom_bar(stat='identity', position='dodge', color = "Black") +
         geom_text(aes(label='n'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment 
         
@@ -42,6 +42,43 @@ def Freq_BarChart():
             y='Sessions',
             fill='Activity',
             color='Goal') +
+        #theme_matplotlib() +
+        theme_seaborn() +
+        theme(figure_size=(10, 5)))
+
+    # Render plot to a matplotlib figure
+    fig = plot.draw()
+
+    # Save figure to buffer
+    static_bytes = io.BytesIO()
+    fig.savefig(static_bytes, format='png', bbox_inches='tight')
+    static_bytes.seek(0)
+    static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
+    frequency_plot_url = f"data:image/png;base64,{static_base64}"
+    plt.close(fig)
+
+    return frequency_plot_url 
+
+
+
+############### Frequency bar chart grouped by exercise type and week ###############
+week_count_data = gen_week_freq_df(aw_final, l_3_m)
+
+def Weekly_Freq_BarChart():
+
+    plot = (ggplot(week_count_data, aes(x='week_label', y='n', fill='activity')) +
+        geom_bar(stat='identity', position='dodge', color = "Black") +
+        geom_text(aes(label='n'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment 
+        
+        scale_fill_brewer(type='qual', palette='Set2') +
+        #scale_color_manual(values={'Running': 'Black', 'Cycling': 'Gray'}) +
+        scale_y_continuous(breaks = range(0, 6),
+                        limits = [0, 5]) +
+
+        labs(title='Workout Frequency by Week and Activity',
+            x='',
+            y='Sessions',
+            fill='Activity') +
         #theme_matplotlib() +
         theme_seaborn() +
         theme(figure_size=(10, 5)))
