@@ -337,41 +337,58 @@ def specific_exercise_filter(specific_exercise):
 
         entry_ids = entry_ids['entry_id'].tolist()
 
-        for id in entry_ids:
-            workout_df = pd.read_sql_query(text("SELECT * FROM habit_answers ha WHERE entry_id = :id"), connection, params={"id": id})
 
-            workout_df = workout_df[['entry_id', 'question', 'answer']]
+        for id in entry_ids:
+            workout_df = pd.read_sql_query(text("SELECT entry_id, question, answer FROM habit_answers ha WHERE entry_id = :id"), connection, params={"id": id})
 
             workout_df = workout_df.pivot(index='entry_id', columns='question', values='answer').reset_index() 
 
             workout_df_total = pd.concat([workout_df_total, workout_df], ignore_index=True)
 
-        habit_entries = pd.read_sql_query(text("SELECT * FROM habit_entries"), connection)
+        habit_entries = pd.read_sql_query(text("SELECT log_date, id FROM habit_entries"), connection)
 
         workout_df_total = workout_df_total.merge(habit_entries, left_on='entry_id', right_on='id', how='left')
 
         workout_df_total = workout_df_total[["log_date", "workout_type", "weight", "sets", "reps", "effort", "comment"]]
 
-        # Getting rid of the nan values 
         workout_df_total['comment'] = workout_df_total['comment'].str.replace("nan", "")
-
-        # Convert the timestamp variable to a datetime format, i'm unsure why I have to do this because that's how it's coded and uploaded in the databse
-        workout_df_total['log_date'] = pd.to_datetime(workout_df_total['log_date'])
-        
-        # Sort the values by date for the table before conert to string output
-        workout_df_total = workout_df_total.sort_values('log_date')
-
-        # Then I convert that that datetime variable into a more readable string format/might even decide I don't want to display hours and minutes
-        workout_df_total['log_date'] = workout_df_total['log_date'].dt.strftime('%B %d, %Y')
 
         # Rename columns for clarity
         workout_df_total.columns = ['Timestamp', 'Exercise', 'Weight', 'Sets', 'Reps', 'Effort Level', 'Notes:']
 
-        # Formatting weight variable to show 1 decimal place only if it exits, otherwise I make it a string and strip the '.' and ending '0'
-        # Idk how I feel about this as I lose weight as a numeric varaible but should be contained in this function only
-        #workout_df_total['weight'] = workout_df_total['weight'].apply(lambda w: f"{w:.1f}".rstrip('0').rstrip('.') if pd.notnull(w) else '')
 
-    return workout_df_total.to_html(classes='workout-table', index=False, border=1)
+        # reading in 10RM workouts to add 
+        ten_rm_additions = pd.read_sql_query(
+            text("""SELECT tc.completion_date as Timestamp, tp.exercise_name as Exercise, tp.target_weight as Weight, tp.sets as Sets, tp.reps as Reps, tc.notes as 'Notes:' 
+                    FROM tenrm_completions tc
+                    LEFT JOIN tenrm_plans tp 
+                        ON tp.id = tc.plan_id
+                    WHERE tp.exercise_name = :exercise
+                    AND tc."timestamp" = (
+                            SELECT MAX(tc2."timestamp")
+                            FROM tenrm_completions tc2
+                            -- Correlated Subquery
+                            -- This works because we loop through plan_ids in orig table until it equals max plan_id
+                            WHERE tc2.plan_id = tc.plan_id)"""), connection, params={"exercise": specific_exercise})
+
+        # Adding a blank spot for effort level since 10rm data doesn't track that
+        ten_rm_additions['Effort Level'] = ""
+
+        # Merging orignal workouts with 10rm workouts with same columns and format 
+        combined_works = pd.concat([workout_df_total, ten_rm_additions], ignore_index=True)
+
+        # Converting the Timestamp variable to a more readable string format 
+
+        # Convert the timestamp variable to a datetime format, i'm unsure why I have to do this because that's how it's coded and uploaded in the databse
+        combined_works['Timestamp'] = pd.to_datetime(combined_works['Timestamp'])
+
+        # Sort the values by date for the table before conert to string output
+        combined_works = combined_works.sort_values('Timestamp')
+
+        # Then I convert that that datetime variable into a more readable string format/ might even decide I don't want to display hours and minutes
+        combined_works['Timestamp'] = combined_works['Timestamp'].dt.strftime('%B %d, %Y')
+
+    return combined_works.to_html(classes='workout-table', index=False, border=1)
 
 
 def generate_excise_options():

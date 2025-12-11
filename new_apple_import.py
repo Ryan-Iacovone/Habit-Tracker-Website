@@ -20,15 +20,17 @@ engine = create_engine(f"sqlite:///habits.db")
 
 
 def max_date():
+
     # Read from SQLite and parse those columns as datetime
     with engine.connect() as connection:
         max_date_db = pd.read_sql_query(
-            text("SELECT max(StartDate) FROM apple_data_raw"), 
+            text("SELECT max(StartDate) as Max_Date FROM apple_data_raw"), 
             connection,
             parse_dates=['startDate'])   
+    engine.dispose()
 
     # Grabbing the max date from dataset to filter new data off of  
-    max_date_db = max_date_db['max(StartDate)'].tolist()[0]
+    max_date_db = max_date_db["Max_Date"][0]
 
     return max_date_db
 
@@ -66,8 +68,9 @@ def R_A_raw_apple(max_date_db):
 def Read_Apple_Workouts():
     # Read from SQLite and parse those columns as datetime
     with engine.connect() as connection:
-        apple = pd.read_sql_query(
-            text("SELECT * FROM apple_data_raw"),
+        apple = pd.read_sql_query( 
+            text("""SELECT workoutActivityType, startDate, endDate, type, maximum, minimum, sum, average, duration, durationUnit 
+            FROM apple_data_raw"""),
             connection,
             parse_dates=['startDate', 'endDate', 'creationDate'])
         
@@ -80,9 +83,6 @@ def Read_Apple_Workouts():
     # .notna() Check for Non-Nulls in selected columns 
     # .any(axis=1) aggregates rows where there's at least one non-missing value 
     apple_workouts = apple[apple[['maximum', 'minimum', 'sum', 'average', 'duration', 'workoutActivityType', 'durationUnit']].notna().any(axis=1)] 
-
-    # Select particular variables
-    apple_workouts = apple_workouts[["workoutActivityType", "startDate", "endDate", "type", "maximum", "minimum", "sum", "average", "duration", "durationUnit"]]
 
     return apple_workouts
 
@@ -122,30 +122,44 @@ def aw_to_long(apple_workouts):
     return result
 
 
+def max_workout_id():
+# Read from SQLite and parse those columns as datetime
+    with engine.connect() as connection:
+        max_workout_id = pd.read_sql_query(
+            text("""SELECT max(workout_id) as workout_id 
+                    FROM apple_workouts
+                    WHERE activity IS NOT NULL"""), # Need to filter on activity because otherwise workout_id is NA
+            connection)  
+
+    # Grabbing the max date from dataset to filter new data off of  
+    max_workout_id = max_workout_id['workout_id'][0]
+
+    return max_workout_id
+
 
 def add_workout_id(aw_long):
-    # Identify rows where activity is not null (these rows define the actual activity)
-    activity_map = aw_long[aw_long['activity'].notnull()]
+    # We're able to easily get unique workouts by date because aw_long only has activity filled for the duration metric which every workout has  
+    activity_map = aw_long[aw_long['activity'].notnull()][["StartDate", "activity"]]
 
-    activity_map = activity_map[["StartDate", "activity"]]
+    # Sorting values by date and resetting index (easy way to grab a unique id so long as I'm sorting correctly)
+    activity_map = activity_map.sort_values('StartDate').reset_index(drop=True)
 
-    # Creating a workout identifier
-    # Creates sequential IDs starting from 0
-    # Convert index IDs to integers
-    activity_map = activity_map.reset_index(drop=True)
-    activity_map['workout_id'] = activity_map.index
+    # Creating a new variable based on the index  
+    # Previous null values probably from Garmin are keeping workout_id from being an integer in aw_final
+    activity_map['workout_id'] = activity_map.index.astype(int) + max_workout_id()  # Start IDs from 1
 
     # Merge activity back onto the main dataframe using startDate
-    aw_final = aw_long.merge(activity_map, on='StartDate', how='left', suffixes=('', '_Specifier'))
+    aw_final = pd.merge(aw_long, activity_map, on='StartDate', how='left', suffixes=('', '_Specifier'))
 
-    # Forward-fill the activity only for rows with the same startDate (simplicity but not needed )
-    aw_final['activity'] = aw_final['activity'].fillna(aw_final['activity_Specifier'])
+    # This doesn't map sense when the helper column has exactly what I want
+    # Forward-fill the activity only for rows with the same startDate (simplicity but not needed)
+    #aw_final['activity'] = aw_final['activity'].fillna(aw_final['activity_Specifier'])
 
-    # Drop helper column
-    aw_final.drop(columns=['activity_Specifier'], inplace=True)
+    # Drop the original activity column
+    aw_final.drop(columns=['activity'], inplace=True)
 
-    # Think about later, can't convert column to int because of missing variables that are uploaded from garmin that wasn't filtered out initally because I need blanks
-    #aw_final_new = aw_final_new['id'].astype('int')
+    # Rename the helper column to activity
+    aw_final.rename(columns={'activity_Specifier': 'activity'}, inplace=True)
 
     # Grabbing just the start of the week in dt fashion
     aw_final['week_period'] = aw_final['StartDate'].dt.to_period('W').apply(lambda r: r.start_time)
@@ -157,7 +171,7 @@ def add_workout_id(aw_long):
     aw_final['month'] = aw_final['StartDate'].dt.to_period('M')
 
     # Adding new activity type variable for minutes calculation 
-    aw_final['activity_type'] = np.where(aw_final['activity'].isin(['Running', 'Cycling', 'Swimming']), 'Cardio',
+    aw_final['activity_type'] = np.where(aw_final['activity'].isin(['Running', 'Cycling', 'Swimming', 'Walking']), 'Cardio',
         np.where(aw_final['activity'] == 'TraditionalStrengthTraining', 'Weights', None))
     
     # need to do a couple of string conversions before uploading the data to the sql lite db
@@ -168,8 +182,10 @@ def add_workout_id(aw_long):
 
     return aw_final
 
+
 def final_upload(aw_final):
         aw_final.to_sql(name="apple_workouts", con=engine, if_exists='append', index=False)
+
 
 
 if __name__ == '__main__':
