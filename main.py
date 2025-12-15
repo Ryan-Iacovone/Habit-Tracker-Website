@@ -440,16 +440,12 @@ def log_10rm_completion():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
-# Update your init_db() function to include 10RM tables
-# Add this line inside init_db():
-# init_10rm_db()
-
-
-
-
 # Clean shutdown of DB connections
 @app.teardown_appcontext
 def shutdown_session(exception=None):
+    # Add a PRAGMA wal_checkpoint call (or VACUUM if you want compaction) in your teardown so WAL pages are flushed to the main DB file.
+    with engine.connect() as conn:
+        conn.execute(text("PRAGMA wal_checkpoint(FULL);"))
     engine.dispose()
 
 if __name__ == '__main__':

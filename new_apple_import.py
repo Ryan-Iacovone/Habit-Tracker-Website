@@ -20,8 +20,7 @@ engine = create_engine(f"sqlite:///habits.db")
 
 
 def max_date():
-
-    # Read from SQLite and parse those columns as datetime
+    # Read in existing max date from apple_data_raw table 
     with engine.connect() as connection:
         max_date_db = pd.read_sql_query(
             text("SELECT max(StartDate) as Max_Date FROM apple_data_raw"), 
@@ -29,20 +28,20 @@ def max_date():
             parse_dates=['startDate'])   
     engine.dispose()
 
-    # Grabbing the max date from dataset to filter new data off of  
-    max_date_db = max_date_db["Max_Date"][0]
+    # Grabbing just the max date from df  
+    max_date = max_date_db["Max_Date"][0]
 
-    return max_date_db
+    return max_date
 
-
-def R_A_raw_apple(max_date_db):
+# ETL step of gathering new data from apple health and upploading it almost as it is apple_data_raw
+def upload_new_raw_apple_data(inital_max_date):
     # Read in new CSV File
     apple = pd.read_csv(os.path.join(directory, apple_file))
 
     ### Cleaning Data ###
 
-    # Remove observations from csv file that are already in my sql db (remove this line if starting from scratch)
-    apple = apple[apple["startDate"] >= max_date_db]
+    # Using the exisiting max date in my db to filter to only new data from apple 
+    apple = apple[apple["startDate"] >= inital_max_date]
 
     # Fitler the source to only my Apple Watch (Could pull in other devices later like iPhone or gamin)
     apple = apple[(apple['sourceName'] == "Ryan’s Apple\xa0Watch") | (apple['sourceName'].isna())]
@@ -61,11 +60,11 @@ def R_A_raw_apple(max_date_db):
     # Drop the UUID column, apple added this since last 7/18 upload
     apple.drop(columns=['uuid'], inplace=True)
 
-    # Appending the new raw data to my sql lite table
+    # Appending the actually new raw data to the apple_data_raw table
     apple.to_sql(name="apple_data_raw", con=engine, if_exists='append', index=False)
 
 
-def Read_Apple_Workouts():
+def Read_Apple_Workouts(inital_max_date):
     # Read from SQLite and parse those columns as datetime
     with engine.connect() as connection:
         apple = pd.read_sql_query( 
@@ -75,8 +74,8 @@ def Read_Apple_Workouts():
             parse_dates=['startDate', 'endDate', 'creationDate'])
         
 
-    # Using max date from the inital upload into the apple workouts raw db to also ensure only new observations are going into the apple workouts table 
-    apple = apple[apple["startDate"] >= max_date_db]
+    # Has to be run in conjunction with 'upload_new_raw_apple_data' function to ensure both are using same max date value
+    apple = apple[apple["startDate"] >= inital_max_date]
 
     # Gather a df of workouts types, their dates, and key statistics
     # Filters df to include only rows where at least one of the workout-related columns is not missing (NaN).
@@ -111,7 +110,7 @@ def aw_to_long(apple_workouts):
     result = pd.concat([df_long[df_long['value'].notna()][['startDate', 'workoutActivityType', 'type', 'measurement_type', 'value', 'durationUnit']],
         duration_rows], ignore_index=True)
 
-    # Rename columns for clarity
+    # Rename columns for clarity (Should probably rename into a dictionary at some point)
     result.columns = ['StartDate', 'activity', 'metric', 'measurement_type', 'value', 'd_unit', 'EndDate']
 
     # cleaning value column to only go out 2 decimal places
@@ -123,22 +122,23 @@ def aw_to_long(apple_workouts):
 
 
 def max_workout_id():
-# Read from SQLite and parse those columns as datetime
+    #Gathering the max workout_id from existing apple_workouts table
     with engine.connect() as connection:
-        max_workout_id = pd.read_sql_query(
+        max_workout_id_df = pd.read_sql_query(
             text("""SELECT max(workout_id) as workout_id 
                     FROM apple_workouts
                     WHERE activity IS NOT NULL"""), # Need to filter on activity because otherwise workout_id is NA
             connection)  
 
     # Grabbing the max date from dataset to filter new data off of  
-    max_workout_id = max_workout_id['workout_id'][0]
+    max_workout_id = max_workout_id_df['workout_id'][0]
 
     return max_workout_id
 
 
 def add_workout_id(aw_long):
-    # We're able to easily get unique workouts by date because aw_long only has activity filled for the duration metric which every workout has  
+
+    # We're able to easily get unique workouts by date because aw_long only has activity filled for the duration metric which every workout has 1 of 
     activity_map = aw_long[aw_long['activity'].notnull()][["StartDate", "activity"]]
 
     # Sorting values by date and resetting index (easy way to grab a unique id so long as I'm sorting correctly)
@@ -151,21 +151,14 @@ def add_workout_id(aw_long):
     # Merge activity back onto the main dataframe using startDate
     aw_final = pd.merge(aw_long, activity_map, on='StartDate', how='left', suffixes=('', '_Specifier'))
 
-    # This doesn't map sense when the helper column has exactly what I want
-    # Forward-fill the activity only for rows with the same startDate (simplicity but not needed)
-    #aw_final['activity'] = aw_final['activity'].fillna(aw_final['activity_Specifier'])
-
     # Drop the original activity column
     aw_final.drop(columns=['activity'], inplace=True)
 
-    # Rename the helper column to activity
+    # Rename the helper column to activity since that's actually what we'll want
     aw_final.rename(columns={'activity_Specifier': 'activity'}, inplace=True)
 
     # Grabbing just the start of the week in dt fashion
     aw_final['week_period'] = aw_final['StartDate'].dt.to_period('W').apply(lambda r: r.start_time)
-
-    # Adding week periods which is EXACTLY what I want! Idk why I then convert it to string
-    #aw_final['week_period'] = aw_final['StartDate'].dt.to_period('W').astype(str)
 
     # Extract Year-Month for grouping
     aw_final['month'] = aw_final['StartDate'].dt.to_period('M')
@@ -189,46 +182,47 @@ def final_upload(aw_final):
 
 
 if __name__ == '__main__':
+    
+    # Using the external code to convert raw apple xml export to more usable csv file 
     apple_health_xml_convert()
 
-    # Defining the subddirectroy 
+    # Defining the subddirectroy where apple docs live
     directory = "apple/"
 
     # Grabbing today's date
-    today = dt.datetime.now().strftime('%Y-%m-%d')
+    today = dt.datetime.now().strftime('%Y-%m-%d') # Format: '2025-12-10' Decebmer 10th, 2025 
 
     # Getting user input at the breginning of this script to ensure I'm grabbing the correct file
-    while True:
-        choice = input("\nAre you using today's date to uploaded apple data? (y/n) \n").lower()
-        if choice == 'y':
-            # Lopping through each of the files in the directory to find a csv file with today's date
-            for file in os.listdir(directory):
-                if file.endswith(".csv") and today in file:
-                    apple_file = file
-            break
-        if choice == "n":
-            print("Exiting program...")
-            time.sleep(2)
+    print(f"Using date of {today} to grab correct Apple Health export CSV file... \n")
+    for file in os.listdir(directory):
+        if file.endswith(".csv") and today in file:
+            apple_file = file
+        else:
+            print("No apple file found with that date... Exiting script")
             sys.exit()
     
     print("\nMoving on to data cleaning stage... \n")
     time.sleep(1)
 
+    # Grabbing existing max date from apple_data_raw table so that we can tell what's old and new data 
     print("Grabbing the max date from existing DB \n")
-    max_date_db = max_date()
+    max_date = max_date()
 
+    # Uploading new raw apple data to apple_data_raw table, based on inital max date
     print("Uploading new raw Apple CSV data to the raw Apple SQL DB \n")
-    R_A_raw_apple(max_date_db)
+    upload_new_raw_apple_data(max_date)
 
     time.sleep(.5)
 
     print("\nReading in newly uploaded raw Apple workouts from 'apple_data_raw' SQL DB \n")
     # Read in raw apple workouts data from the sql db
-    apple_workouts = Read_Apple_Workouts()
+    apple_workouts = Read_Apple_Workouts(max_date)
 
     print("Cleaning newly uploaded raw Apple data \n")
     # Convert apple workouts to long format
     aw_long = aw_to_long(apple_workouts)
+
+    # Properly adding workout id taking into account existing max workout id 
     aw_final = add_workout_id(aw_long)
 
     print("\nUploading newly cleaned Apple data to 'apple_workouts' SQL DB \n")
