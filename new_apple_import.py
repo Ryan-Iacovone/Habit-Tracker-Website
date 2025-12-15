@@ -177,7 +177,7 @@ def add_workout_id(aw_long):
 
 
 def final_upload(aw_final):
-        aw_final.to_sql(name="apple_workouts", con=engine, if_exists='append', index=False)
+        aw_final.to_sql(name="apple_workouts", con=engine, if_exists='append', index=False) 
 
 
 
@@ -192,14 +192,19 @@ if __name__ == '__main__':
     # Grabbing today's date
     today = dt.datetime.now().strftime('%Y-%m-%d') # Format: '2025-12-10' Decebmer 10th, 2025 
 
+    # Initializing variable
+    apple_file = None
+
     # Getting user input at the breginning of this script to ensure I'm grabbing the correct file
-    print(f"Using date of {today} to grab correct Apple Health export CSV file... \n")
     for file in os.listdir(directory):
         if file.endswith(".csv") and today in file:
             apple_file = file
-        else:
-            print("No apple file found with that date... Exiting script")
-            sys.exit()
+            print(f"Found Apple Health file: {apple_file}")
+            break  # stop once we find it
+
+    if apple_file is None:
+        print("No apple file found with that date... Exiting script")
+        sys.exit(1)
     
     print("\nMoving on to data cleaning stage... \n")
     time.sleep(1)
