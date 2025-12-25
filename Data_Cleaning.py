@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, text
 from db import engine
 
 # Grab today's date once, then have it pass through each funtion
-today = pd.Timestamp.today()
+today = pd.Timestamp.now(tz="America/New_York")
 
 # Update the list of book titles table in my database with any potential new entries
 def load_book_options():
@@ -14,9 +14,10 @@ def load_book_options():
     with engine.connect() as connection:
         books_options = pd.read_sql_query(
             text("""SELECT DISTINCT answer FROM habit_answers
-                WHERE question = 'book_title'"""), connection)
+                    WHERE question = 'book_title'
+                    ORDER BY answer"""), connection)
         
-    book_titles = sorted(books_options["answer"].to_list())
+    book_titles = books_options["answer"].to_list()
 
     # Add an "Other" option to the list of book titles because 'other' is not saved to the database
     book_titles.append("Other") 
@@ -30,9 +31,10 @@ def load_workout_options():
     with engine.connect() as connection:
         workouts = pd.read_sql_query(
             text("""SELECT DISTINCT answer FROM habit_answers
-                WHERE question = 'workout_type'"""), connection)
+                    WHERE question = 'workout_type'
+                    ORDER BY answer"""), connection)
         
-    workouts_list = sorted(workouts['answer'].tolist())
+    workouts_list = workouts['answer'].tolist()
 
     # Add "Other" option to the list of book titles and works. This way other is not saved to the database
     workouts_list.append("Other")
@@ -48,12 +50,28 @@ def Read_Apple_Workouts():
     with engine.connect() as connection:
         aw_final = pd.read_sql_query(
             text("SELECT * FROM apple_workouts"),
-            connection,
-            parse_dates=['StartDate', 'EndDate', 'week_period'])
+            connection)
+        
+    # Converting the string datetime variable from db to with timezone normalization to UTC then converting to EST
+    # This is needed because of combination of EST and EDT in the data 
+    date_cols = ["StartDate"]
+    for col in date_cols:
+        aw_final[col] = (
+            pd.to_datetime(aw_final[col])
+            .dt.tz_localize("UTC")
+            .dt.tz_convert("US/Eastern")
+    )
 
+    # taking the string value of month from the sqlite db and converting to period type
+    aw_final['month'] = pd.to_datetime(
+            aw_final["month"],
+            format="%Y-%m"
+        ).dt.to_period('M')
 
-    # Convert 'month' to a period type for better handling of monthly data
-    aw_final['month'] = aw_final['month'].astype('period[M]')
+    # taking the string value of week_period from the sqlite db and converting to date type
+    aw_final['week_period'] = pd.to_datetime(
+        aw_final['week_period'],
+        format="%Y-%m-%d")
 
     return aw_final
 
@@ -267,6 +285,13 @@ def gen_steps_month_df(filter3):
                 ORDER BY startDate DESC"""), connection,
             params={"t_filter": filter3},
             parse_dates=['startDate', 'endDate'])
+        
+    apple["startDate"] = (pd.to_datetime(
+        apple["startDate"],
+        format="ISO8601"
+    ).tz_convert("America/New_York"))
+
+    apple['value'] = apple['value'].astype(float)
         
 
     # Group by date (not datetime)

@@ -12,12 +12,12 @@ matplotlib.use('Agg')  # use non-GUI backend for Flask app
 
 
 # Grab today's date once, then have it pass through each funtion
-today = pd.Timestamp.today()
+today = pd.Timestamp.now(tz="America/New_York")
 
 # List of date filter calculations we can pass through
 l_3_m = (today - pd.DateOffset(weeks=14)).normalize() # Normalize sets the time to midnight
 l_7_m = (today - pd.DateOffset(months=7)).to_period('M') # 
-l_1_y = str((today - pd.DateOffset(months=12)).to_period('M')) # 
+l_1_y = (today - pd.DateOffset(months=12)).to_period('M') # 
 
 
 # Apple workout data from data_cleaning file

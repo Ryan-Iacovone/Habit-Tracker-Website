@@ -5,6 +5,8 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 import time
 import numpy as np
+from zoneinfo import ZoneInfo
+from datetime import datetime
 
 from apple.apple_health_xml_convert import preprocess_to_temp_file, strip_invisible_character, xml_to_csv, save_to_csv, \
 remove_temp_file
@@ -20,23 +22,26 @@ engine = create_engine(f"sqlite:///habits.db")
 
 
 def max_date():
-    # Read in existing max date from apple_data_raw table 
+    # Read from SQLite and parse those columns as datetime
     with engine.connect() as connection:
         max_date_db = pd.read_sql_query(
             text("SELECT max(StartDate) as Max_Date FROM apple_data_raw"), 
             connection,
             parse_dates=['startDate'])   
-    engine.dispose()
+    engine.dispose() 
 
-    # Grabbing just the max date from df  
-    max_date = max_date_db["Max_Date"][0]
+    # Grabbing max date from apple raw   
+    max_date_utc = datetime.strptime(max_date_db["Max_Date"][0], "%Y-%m-%dT%H:%M:%S%z")
 
-    return max_date
+    # Convert to Eastern Time and making it a string to filter incoming apple csv data which is in EST 
+    max_date_est = max_date_utc.astimezone(ZoneInfo("America/New_York")).strftime('%Y-%m-%dT%H:%M:%S%z')
+
+    return max_date_est, max_date_utc
 
 # ETL step of gathering new data from apple health and upploading it almost as it is apple_data_raw
 def upload_new_raw_apple_data(inital_max_date):
-    # Read in new CSV File
-    apple = pd.read_csv(os.path.join(directory, apple_file))
+    # Read in new CSV File, low_memory=False to avoid dtype warnings
+    apple = pd.read_csv(os.path.join(directory, apple_file), low_memory=False)
 
     ### Cleaning Data ###
 
@@ -64,24 +69,30 @@ def upload_new_raw_apple_data(inital_max_date):
     apple.to_sql(name="apple_data_raw", con=engine, if_exists='append', index=False)
 
 
-def Read_Apple_Workouts(inital_max_date):
+def Read_Apple_Workouts(max_date_utc):
     # Read from SQLite and parse those columns as datetime
-    with engine.connect() as connection:
+    with engine.connect() as connection: #workoutActivityType, startDate, endDate, type, maximum, minimum, sum, average, duration, durationUnit 
         apple = pd.read_sql_query( 
             text("""SELECT workoutActivityType, startDate, endDate, type, maximum, minimum, sum, average, duration, durationUnit 
-            FROM apple_data_raw"""),
+            FROM apple_data_raw
+            WHERE StartDate > :max_date"""),
             connection,
+            params={"max_date": max_date_utc}, #There's gotta be a reason I didn't do this before (This would need to be passed in initally otherwise will read none)
             parse_dates=['startDate', 'endDate', 'creationDate'])
         
+    engine.dispose()
 
-    # Has to be run in conjunction with 'upload_new_raw_apple_data' function to ensure both are using same max date value
-    apple = apple[apple["startDate"] >= inital_max_date]
+    # Using max date from the inital upload into the apple workouts raw db to also ensure only new observations are going into the apple workouts table 
+    apple = apple[apple["startDate"] >= max_date_utc]
 
     # Gather a df of workouts types, their dates, and key statistics
     # Filters df to include only rows where at least one of the workout-related columns is not missing (NaN).
     # .notna() Check for Non-Nulls in selected columns 
     # .any(axis=1) aggregates rows where there's at least one non-missing value 
-    apple_workouts = apple[apple[['maximum', 'minimum', 'sum', 'average', 'duration', 'workoutActivityType', 'durationUnit']].notna().any(axis=1)] 
+    apple_workouts = apple[apple.notna().any(axis=1)] 
+
+    # Select particular variables
+    #apple_workouts = apple_workouts[["workoutActivityType", "startDate", "endDate", "type", "maximum", "minimum", "sum", "average", "duration", "durationUnit"]]
 
     return apple_workouts
 
@@ -211,17 +222,16 @@ if __name__ == '__main__':
 
     # Grabbing existing max date from apple_data_raw table so that we can tell what's old and new data 
     print("Grabbing the max date from existing DB \n")
-    max_date = max_date()
+    max_date_est, max_date_utc = max_date()
 
     # Uploading new raw apple data to apple_data_raw table, based on inital max date
     print("Uploading new raw Apple CSV data to the raw Apple SQL DB \n")
-    upload_new_raw_apple_data(max_date)
-
+    upload_new_raw_apple_data(max_date_est)
     time.sleep(.5)
 
     print("\nReading in newly uploaded raw Apple workouts from 'apple_data_raw' SQL DB \n")
     # Read in raw apple workouts data from the sql db
-    apple_workouts = Read_Apple_Workouts(max_date)
+    apple_workouts = Read_Apple_Workouts(max_date_utc)
 
     print("Cleaning newly uploaded raw Apple data \n")
     # Convert apple workouts to long format
