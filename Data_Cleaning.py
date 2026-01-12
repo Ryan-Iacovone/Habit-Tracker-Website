@@ -1,11 +1,11 @@
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from zoneinfo import ZoneInfo
 import pandas as pd
 from itertools import product
 from pandas.api.types import CategoricalDtype
 from sqlalchemy import create_engine, text
 from db import engine
-
-# Grab today's date once, then have it pass through each funtion
-today = pd.Timestamp.now(tz="America/New_York")
 
 # Update the list of book titles table in my database with any potential new entries
 def load_book_options():
@@ -26,7 +26,7 @@ def load_book_options():
 
 
 # List to log existing workouts from db
-def load_workout_options():
+def load_workout_options(category: int):
 
     with engine.connect() as connection:
         workouts = pd.read_sql_query(
@@ -36,8 +36,12 @@ def load_workout_options():
         
     workouts_list = workouts['answer'].tolist()
 
-    # Add "Other" option to the list of book titles and works. This way other is not saved to the database
-    workouts_list.append("Other")
+    # Adding some logic to use this function multiple places depending on whether I need an "Other" option or not 
+    if category == 0:
+        pass
+    elif category == 1:
+        # Add "Other" option to the list of book titles and works. This way other is not saved to the database
+        workouts_list.append("Other")        
 
     return workouts_list
 
@@ -48,34 +52,48 @@ def Read_Apple_Workouts():
 
     # Read in the data and parse datetime columns
     with engine.connect() as connection:
-        aw_final = pd.read_sql_query(
-            text("SELECT * FROM apple_workouts"),
+        aw_all = pd.read_sql_query(
+            text("""SELECT * FROM apple_workouts"""),
             connection)
+            #dtype={"workout_id": "Int64"}) # Converting workout_id to Int64 upon entry, will need again if workout_id includes blanks
         
     # Converting the string datetime variable from db to with timezone normalization to UTC then converting to EST
     # This is needed because of combination of EST and EDT in the data 
+    # I could do this with a parse dates function in pd.read_sql_query() function above
     date_cols = ["StartDate"]
     for col in date_cols:
-        aw_final[col] = (
-            pd.to_datetime(aw_final[col])
+        aw_all[col] = (
+            pd.to_datetime(aw_all[col])
             .dt.tz_localize("UTC")
-            .dt.tz_convert("US/Eastern")
-    )
+            .dt.tz_convert("US/Eastern"))
+    
 
-    # taking the string value of month from the sqlite db and converting to period type
-    aw_final['month'] = pd.to_datetime(
-            aw_final["month"],
-            format="%Y-%m"
-        ).dt.to_period('M')
+    # Creating a month categorical variable
+    # Create a string label for display
+    aw_all['month'] =  aw_all['StartDate'].dt.strftime('%b %Y') # Need .dt for series/panda 
+    # Certainly 1 way to get month from datetime but keep it as a datetime variable lol
+    aw_all['month_date'] =  pd.to_datetime(aw_all['month'], format='%b %Y') # Need .dt for series/panda
+    # Need to localize datetime to US/Eastern
+    aw_all['month_date'] = aw_all['month_date'].dt.tz_localize("US/Eastern")
+    # Set 'month' as a categorical(factor variable) with order based on 'month_date'
+    month_order = aw_all.sort_values('month_date')['month'].unique()
+    aw_all['month'] = pd.Categorical(aw_all['month'], categories=month_order, ordered=True)
 
-    # taking the string value of week_period from the sqlite db and converting to date type
-    aw_final['week_period'] = pd.to_datetime(
-        aw_final['week_period'],
-        format="%Y-%m-%d")
+    # Creating a week categorical variable
+    # calculating out necessary time metrics when reading in apple workouts data
+    ## calculates how many days each weekday is from monday and subtracts that from the orignal date to get back to start of the week Monday
+    aw_all['week_date'] = (
+        aw_all['StartDate'] - pd.to_timedelta(aw_all['StartDate'].dt.weekday, unit="D") # dt.weekday uses Monday as 0 
+    ).dt.normalize()
+        # Create a string label for display
+    aw_all['week'] = aw_all['week_date'].dt.strftime('%b %d')
+    # Set 'week_label' as a categorical(factor variable) with order based on 'week_period'
+    week_order = aw_all.sort_values('week_date')['week'].unique()
+    aw_all['week'] = pd.Categorical(aw_all['week'], categories=week_order, ordered=True)
 
-    return aw_final
+    return aw_all
 
-aw_final = Read_Apple_Workouts()
+aw_all = Read_Apple_Workouts()
 
 
 # Function that fills in missing data for each grouped by df 
@@ -112,243 +130,229 @@ def fill_missing_combinations(
 
 
 ############### Frequency bar chart grouped by exercise type and month ###############
-def gen_month_freq_df(aw_final, filter1):
+def gen_month_freq_df(aw_all, l_7_m):
     activities = ["Walking", "Cycling", "TraditionalStrengthTraining", "Running", "Swimming"]
 
-    df_counts = (aw_final[(aw_final['metric'] == 'Duration') & (aw_final['activity'].isin(activities)) & (aw_final['month'] > filter1)]
-        .groupby(['month', 'activity'])
-        .size()
-        .reset_index(name='n'))
-    
+    df_counts = (aw_all[(aw_all['metric'] == 'Duration') & (aw_all['activity'].isin(activities)) & 
+                        (aw_all['month_date'] > l_7_m)]
+                        .groupby(['month_date', 'activity'], observed=True) # Include only combinations that actually occur in the data
+                        .size() 
+                        .reset_index(name='n'))
+
     month_count_data = fill_missing_combinations(
         original_df=df_counts,
         aggregated_df=df_counts,
-        time_col='month',
+        time_col='month_date',
         category_col='activity',
         value_cols=['n'])
 
     month_count_data['n'] = month_count_data['n'].astype(int)  # Convert to int for better readability
 
-    # Create a string label for display
-    month_count_data['month_label'] = month_count_data['month'].dt.strftime('%b %Y')
-
-    # Set 'month_label' as a categorical(factor variable) with order based on 'month_period'
-    month_order = month_count_data.sort_values('month')['month_label'].unique()
-    month_count_data['month_label'] = pd.Categorical(month_count_data['month_label'], categories=month_order, ordered=True)  # Convert to int for better readability
-
     # Adding a label for 'TraditionalStrengthTraining' top shorten it for the graph output
     month_count_data['activity'] = month_count_data['activity'].replace({'TraditionalStrengthTraining': 'Weights'})
+
+    # Merging in categorical month label
+    month_count_data = pd.merge(month_count_data,
+        aw_all[['month', 'month_date']].drop_duplicates(),
+        on='month_date',
+        how='left')
 
     return month_count_data
 
 
 
 ############### Frequency bar chart grouped by exercise type and week ###############
-def gen_week_freq_df(aw_final, filter2):
+def gen_week_freq_df(aw_all, l_3_m):
     activities = ["Walking", "Cycling", "TraditionalStrengthTraining", "Running", "Swimming"]
 
-    df_counts = (aw_final[(aw_final['metric'] == 'Duration') & (aw_final['activity'].isin(activities)) & (aw_final['StartDate'] >= filter2)]
-        .groupby(['week_period', 'activity'])
+    df_counts = (aw_all[(aw_all['metric'] == 'Duration') & (aw_all['activity'].isin(activities)) & (aw_all['week_date'] > l_3_m)]
+        .groupby(['week_date', 'activity'])
         .size()
         .reset_index(name='n'))
-    
+
     week_count_data = fill_missing_combinations(
         original_df=df_counts,
         aggregated_df=df_counts,
-        time_col='week_period',
+        time_col='week_date',
         category_col='activity',
         value_cols=['n'])
 
     week_count_data['n'] = week_count_data['n'].astype(int)  # Convert to int for better readability
 
-    # Create a string label for display
-    week_count_data['week_label'] = week_count_data['week_period'].dt.strftime('%b %d')
-
-    # Set 'week_label' as a categorical(factor variable) with order based on 'week_period'
-    week_order = week_count_data.sort_values('week_period')['week_label'].unique()
-    week_count_data['week_label'] = pd.Categorical(week_count_data['week_label'], categories=week_order, ordered=True)
-
     # Adding a label for 'TraditionalStrengthTraining' top shorten it for the graph output
     week_count_data['activity'] = week_count_data['activity'].replace({'TraditionalStrengthTraining': 'Weights'})
+
+    week_count_data = pd.merge(week_count_data,
+        aw_all[['week', 'week_date']].drop_duplicates(),
+        on='week_date',
+        how='left')
 
     return week_count_data
 
 
 
 
-
-
 ############### Distance per week grouped by exercise type ###############
-def gen_distance_df(aw_final, filter2):
+def gen_distance_df(aw_all, l_3_m):
 
-    miles_week = (aw_final[(aw_final['activity'].isin(['Running', 'Cycling'])) & (aw_final['metric'].str.contains("Distance")) & (aw_final['StartDate'] >= filter2)]
-        .groupby(['activity', 'week_period'])['value']
+    miles_week = (aw_all[(aw_all['activity'].isin(['Running', 'Cycling'])) & (aw_all['metric'].str.contains("Distance")) & (aw_all['week_date'] >= l_3_m)]
+        .groupby(['activity', 'week_date'])['value']
         .agg(Total_Miles='sum', n='count')  # compute both mean and count
         .round(2) # Round to 2 decimal places
         .reset_index())
 
 
     full_miles_week = fill_missing_combinations(
-        original_df=aw_final,
+        original_df=miles_week,
         aggregated_df=miles_week,
-        time_col='week_period',
+        time_col='week_date',
         category_col='activity',
-        value_cols=['Total_Miles', 'n'],
-        time_filter=lambda df: df['StartDate'] > filter2,
-        category_values=['Running', 'Cycling'])
-        
-        # Create a string label for display
-    full_miles_week['week_label'] = full_miles_week['week_period'].dt.strftime('%b %d')
+        value_cols=['Total_Miles', 'n'])
 
-    # Set 'week_label' as a categorical(factor variable) with order based on 'week_period'
-    week_order = full_miles_week.sort_values('week_period')['week_label'].unique()
-    full_miles_week['week_label'] = pd.Categorical(full_miles_week['week_label'], categories=week_order, ordered=True)
+
+    full_miles_week = pd.merge(full_miles_week,
+        aw_all[['week', 'week_date']].drop_duplicates(),
+        on='week_date',
+        how='left')
 
     
     return full_miles_week
 
 
 ############### Minutes per week grouped by cardio and weights ###############
-def gen_mins_df(aw_final, filter2):
+def gen_mins_df(aw_all, l_3_m):
 
-    mins_week = (aw_final[
-            (aw_final['activity_type'].notna()) &
-            (aw_final['metric'] == "Duration") &
-            (aw_final['StartDate'] >= filter2)]
-        .groupby(['activity_type', 'week_period'])['value']
+    mins_week = (aw_all[
+            (aw_all['activity_type'].notna()) &
+            (aw_all['metric'] == "Duration") &
+            (aw_all['week_date'] >= l_3_m)]
+        .groupby(['activity_type', 'week_date'])['value']
         .agg(Total_min='sum', n='count')  # compute sum and count
         .round(2)  # Round to 2 decimal places
         .reset_index())
 
     full_mins_week = fill_missing_combinations(
-        original_df=aw_final,
+        original_df=mins_week,
         aggregated_df=mins_week,
-        time_col='week_period',
+        time_col='week_date',
         category_col='activity_type',
-        value_cols=['Total_min', 'n'],
-        time_filter=lambda df: df['StartDate'] > filter2,
-        category_values=['Cardio', 'Weights'])
-    
-        
-    # Create a string label for display
-    full_mins_week['week_label'] = full_mins_week['week_period'].dt.strftime('%b %d')
+        value_cols=['Total_min', 'n'])
 
-    # Set 'week_label' as a categorical(factor variable) with order based on 'week_period'
-    week_order = full_mins_week.sort_values('week_period')['week_label'].unique()
-    full_mins_week['week_label'] = pd.Categorical(full_mins_week['week_label'], categories=week_order, ordered=True)
+    full_mins_week = pd.merge(full_mins_week,
+        aw_all[['week', 'week_date']].drop_duplicates(),
+        on='week_date',
+        how='left')
     
     return full_mins_week
 
 
 ############### Minutes per week for all exercises ############### 
-def gen_workout_time_df(aw_final, filter1):
-    workout_time = aw_final[(aw_final['month'] > filter1) & 
-                            (aw_final['metric'] == 'Duration')].groupby(['week_period'])['value'].agg(Time='sum', n='count').reset_index()
-    workout_time['Time'] = workout_time['Time'].round(2)
+def gen_workout_time_df(aw_all, l_3_m):
+    workout_time = (
+        aw_all[(aw_all['week_date'] > l_3_m) & (aw_all['metric'] == 'Duration')]
+        .groupby('week_date', observed=True)['value']
+        .agg(Time='sum', n='count')
+        .round(2)
+        .reset_index())
+
+    workout_time = pd.merge(workout_time,
+        aw_all[['week', 'week_date']].drop_duplicates(),
+        on='week_date',
+        how='left')
 
     return workout_time
 
 
 ############### Activity Treemap ###############  
-def gen_activity_treemap_df(aw_final, filter2):
+def gen_activity_treemap_df(aw_all, l_3_m):
 
     activites = ['Running', 'Cycling', 'TraditionalStrengthTraining', 'Swimming']
 
-    activity_distribution = (aw_final[
-            (aw_final['metric'] == "Duration") & 
-            (aw_final['activity'].isin(activites)) & 
-            (aw_final['StartDate'] >= filter2)]
-        .sort_values(by='StartDate', ascending=False)
+    activity_distribution = (aw_all[
+            (aw_all['metric'] == "Duration") & 
+            (aw_all['activity'].isin(activites)) & 
+            (aw_all['week_date'] >= l_3_m)] # Filtering by the last 3 months
         .groupby(['activity'])['value']
-        .agg(count='count')
+        .agg(n='count')
         .reset_index())
                 
     # Add percent of total column
-    total = activity_distribution['count'].sum()
-    activity_distribution['percent'] = activity_distribution['count'] / total
+    total = activity_distribution['n'].sum()
+    activity_distribution['percent'] = activity_distribution['n'] / total
 
     # Format labels as "Activity<br>Count (Percent)"
-    activity_distribution['label'] = activity_distribution.apply(lambda row: f"{row['activity']}<br>{row['count']} ({row['percent']:.1%})", axis=1)
+    activity_distribution['label'] = activity_distribution.apply(lambda row: f"{row['activity']}<br>{row['n']} ({row['percent']:.1%})", axis=1)
 
     return activity_distribution
 
 
-############### Steps per day boxplot ###############
-def gen_steps_month_df(filter3):
+############### Daily Step count grouped by month boxplot ###############
+def gen_steps_month_df(l_1_y):
 
-    # Read from SQLite and parse those columns as datetime
+    # Calculating steps per day in SQLite, then using localtime function to get to EST from UTC
     with engine.connect() as connection:
-        apple = pd.read_sql_query(
-            text("""SELECT type, value, startDate, endDate 
-                FROM apple_data_raw
-                WHERE type = 'StepCount' AND value IS NOT NULL and startDate >= :t_filter
-                ORDER BY startDate DESC"""), connection,
-            params={"t_filter": filter3},
-            parse_dates=['startDate', 'endDate'])
-        
-    apple["startDate"] = (pd.to_datetime(
-        apple["startDate"],
-        format="ISO8601"
-    ).tz_convert("America/New_York"))
+        apple_steps = pd.read_sql_query(
+            text("""SELECT type, sum(value) as 'value', date(startDate, 'localtime') as 'date', DATETIME(startDate, 'start of month') as 'month_date'
+                    FROM apple_data_raw
+                    WHERE type = 'StepCount' AND value IS NOT NULL and date(startDate, 'start of month','+1 month','-1 day') >= :t_filter
+                    GROUP BY date(startDate)
+                    ORDER BY 'date'"""), connection,
+            dtype={"value": "Int64"},
+            params={"t_filter": l_1_y},
+            parse_dates=['date', 'month_date'])
 
-    apple['value'] = apple['value'].astype(float)
-        
+    # Localizing date and month_date to US/Eastern because already convert to localtime in the SQL query
+    apple_steps['date'] = apple_steps['date'].dt.tz_localize("US/Eastern")
+    apple_steps['month_date'] = apple_steps['month_date'].dt.tz_localize("US/Eastern")
 
-    # Group by date (not datetime)
-    steps_day = apple.groupby(apple['startDate'].dt.date)['value'].agg(steps='sum', n='count').reset_index()
+    # Creating a month categorical variable
+    apple_steps['month'] = apple_steps['date'].dt.strftime('%b %Y') # Need .dt for series/panda
 
-    # Convert 'startDate' to datetime
-    steps_day['startDate'] = pd.to_datetime(steps_day['startDate'])
+    # Set 'month' as a categorical(factor variable) with order based on 'month_date'
+    month_order = apple_steps.sort_values('month_date')['month'].unique()
+    apple_steps['month'] = pd.Categorical(apple_steps['month'], categories=month_order, ordered=True)
 
-    # Extract month as a period for correct ordering
-    steps_day['month_period'] = steps_day['startDate'].dt.to_period('M')
-
-    # Create a string label for display
-    steps_day['month_label'] = steps_day['month_period'].dt.strftime('%b %Y')
-
-    # Set 'month_label' as a categorical(factor variable) with order based on 'month_period'
-    month_order = steps_day.sort_values('month_period')['month_label'].unique()
-    steps_day['month_label'] = pd.Categorical(steps_day['month_label'], categories=month_order, ordered=True)
-
-    return steps_day
+    return apple_steps
 
 
 
 ############### KPI Statisitcs Functions ###############
 
 # Going to have to recreate this function with apple workout data
-def get_kpi_stats(steps_day):
+def get_kpi_stats(apple_steps, l_3_m):
 
-    # Get this month and last month as Periods
-    this_month = today.to_period('M')
-    last_month = (today - pd.DateOffset(months=1)).to_period('M')
-    three_mon_ago = (today - pd.DateOffset(months=3)).normalize() # Normalize sets the time to midnight
+    # gathering some date statistics for filtering but I'm not sure I like this method :/
+    today = datetime.now(tz=ZoneInfo("US/Eastern"))
 
+    this_month = today.strftime('%b %Y')
+    last_month = (today - relativedelta(months=1)).strftime('%b %Y')
+    current_year = int(today.strftime('%Y'))
+    duration_length = 10
 
-    # Since I just want to get straight count numbers for this db, I can use the shape funciton to get row count
-    wokrout_count_CM = aw_final[(aw_final['month'] == this_month) & (aw_final['metric'] == 'Duration')].shape[0]
-    workout_count_LM = aw_final[(aw_final['month'] == last_month) & (aw_final['metric'] == 'Duration')].shape[0]
-    workout_count_year = aw_final[(aw_final['StartDate'].dt.year >= 2025) & (aw_final['metric'] == 'Duration')].shape[0]
+    # Gathering wokrout counts (classifying a true workout to be greater than 10 minutes long)
+    ## Current Month Workout Count
+    wokrout_count_CM = len(aw_all[(aw_all['month'] == this_month) & (aw_all['metric'] == 'Duration') & (aw_all['value'] >= duration_length)])
+    ## Last month Workout Count
+    workout_count_LM = len(aw_all[(aw_all['month'] == last_month) & (aw_all['metric'] == 'Duration') & (aw_all['value'] >= duration_length)])
+    ## Current Year Workout Count
+    workout_count_year = len(aw_all[(aw_all['StartDate'].dt.year == current_year) & (aw_all['metric'] == 'Duration') & (aw_all['value'] >= duration_length)])
 
     # Average daily step count last 3 months
-    steps_L3_mon = steps_day[steps_day["startDate"] >= three_mon_ago]
-    steps_L3_mon = steps_L3_mon["steps"].mean().round(0).astype("int")
+    steps_L3_mon = apple_steps[apple_steps['date'] >= l_3_m]['value'].mean().round(0).astype("int")
 
-    # Gather workout time metrics
-    workout_time = aw_final[(aw_final['metric'] == 'Duration')].groupby(['week_period'])['value'].agg(Time='sum', n='count').reset_index()
-    workout_time = workout_time[workout_time["week_period"] >= three_mon_ago] # Taking the last 3 months of data 
-    workout_time_hrs_avg = (workout_time["Time"].mean()/60).round(2) 
+    # Gather average weekly time spent working out using last 3 months data
+    workout_time_df = aw_all[(aw_all['metric'] == 'Duration') & (aw_all['week_date'] > l_3_m) ].groupby(['week_date'])['value'].agg(Time='sum', n='count').reset_index()
+    workout_time_hrs_avg = (workout_time_df["Time"].mean()/60).round(2)
 
     # Gather names for above statistic
-
-    current_month_name = today.month_name()
-    last_month_name = (today - pd.DateOffset(months=1)).strftime('%B')  
+    current_month_name = today.strftime('%B')
+    last_month_name = (today - relativedelta(months=1)).strftime('%B') 
 
     return workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg, steps_L3_mon
 
 
 
-############### Dynamic Visuals Functions ###############
+############### Filtered Exercise HTML Table ###############
 
 # Generates a table for the dynamic exercise filter page 
 def specific_exercise_filter(specific_exercise):
@@ -357,30 +361,23 @@ def specific_exercise_filter(specific_exercise):
     workout_df_total = pd.DataFrame(columns=columns)
 
     with engine.connect() as connection:
-
         entry_ids = pd.read_sql_query(text("SELECT ha.entry_id FROM habit_answers ha WHERE answer = :exercise"), connection, params={"exercise": specific_exercise})
-
         entry_ids = entry_ids['entry_id'].tolist()
-
 
         for id in entry_ids:
             workout_df = pd.read_sql_query(text("SELECT entry_id, question, answer FROM habit_answers ha WHERE entry_id = :id"), connection, params={"id": id})
-
             workout_df = workout_df.pivot(index='entry_id', columns='question', values='answer').reset_index() 
-
             workout_df_total = pd.concat([workout_df_total, workout_df], ignore_index=True)
 
         habit_entries = pd.read_sql_query(text("SELECT log_date, id FROM habit_entries"), connection)
 
-        workout_df_total = workout_df_total.merge(habit_entries, left_on='entry_id', right_on='id', how='left')
-
-        workout_df_total = workout_df_total[["log_date", "workout_type", "weight", "sets", "reps", "effort", "comment"]]
+        # Merging and selecting relevant columns
+        workout_df_total = pd.merge(workout_df_total, habit_entries, left_on='entry_id', right_on='id', how='left')[["log_date", "workout_type", "weight", "sets", "reps", "effort", "comment"]]
 
         workout_df_total['comment'] = workout_df_total['comment'].str.replace("nan", "")
 
-        # Rename columns for clarity
-        workout_df_total.columns = ['Timestamp', 'Exercise', 'Weight', 'Sets', 'Reps', 'Effort Level', 'Notes:']
-
+        workout_df_total.rename(columns={'log_date': 'Timestamp', 'workout_type': 'Exercise', 'weight': 'Weight', 'sets': 'Sets', 'reps': 'Reps',
+                                'effort': 'Effort Level', 'comment': 'Notes:'}, inplace=True)
 
         # reading in 10RM workouts to add 
         ten_rm_additions = pd.read_sql_query(
@@ -396,34 +393,19 @@ def specific_exercise_filter(specific_exercise):
                             -- This works because we loop through plan_ids in orig table until it equals max plan_id
                             WHERE tc2.plan_id = tc.plan_id)"""), connection, params={"exercise": specific_exercise})
 
-        # Adding a blank spot for effort level since 10rm data doesn't track that
+        # Adding in effort level as a blank variable since 10rm data doesn't track that
         ten_rm_additions['Effort Level'] = ""
 
-        # Merging orignal workouts with 10rm workouts with same columns and format 
-        combined_works = pd.concat([workout_df_total, ten_rm_additions], ignore_index=True)
+        # Combining original workouts with 10rm workouts (Since they have the same columns and format) 
+        combined_works = pd.concat([workout_df_total, ten_rm_additions], ignore_index=True) 
 
-        # Converting the Timestamp variable to a more readable string format 
-
-        # Convert the timestamp variable to a datetime format, i'm unsure why I have to do this because that's how it's coded and uploaded in the databse
+        # Convert the timestamp variable to a datetime format ( Could have done this sql query with parse dates too)
         combined_works['Timestamp'] = pd.to_datetime(combined_works['Timestamp'])
 
-        # Sort the values by date for the table before conert to string output
+        # Sort the combined_works table by date before converting to string output (for readability)
         combined_works = combined_works.sort_values('Timestamp')
 
-        # Then I convert that that datetime variable into a more readable string format/ might even decide I don't want to display hours and minutes
+        # Converting Timestamp into readable string format (flexability to display time however I want
         combined_works['Timestamp'] = combined_works['Timestamp'].dt.strftime('%B %d, %Y')
 
     return combined_works.to_html(classes='workout-table', index=False, border=1)
-
-
-def generate_excise_options():
-    # Get unique exercises for dropdown
-
-    with engine.connect() as connection:
-        workouts = pd.read_sql_query(
-            text("""SELECT DISTINCT answer FROM habit_answers
-                WHERE question = 'workout_type'"""), connection)
-        
-        exercise_options = sorted(workouts['answer'].dropna().tolist())
-
-    return exercise_options

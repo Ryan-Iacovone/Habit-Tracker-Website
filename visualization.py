@@ -3,34 +3,35 @@ import matplotlib
 import plotly.express as px
 import plotly.io as pio
 import io
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from zoneinfo import ZoneInfo
 import base64
 import pandas as pd 
 from plotnine import *
-from Data_Cleaning import Read_Apple_Workouts, gen_month_freq_df, gen_week_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df, gen_steps_month_df
+from data_cleaning import Read_Apple_Workouts, gen_month_freq_df, gen_week_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df, gen_steps_month_df
 
 matplotlib.use('Agg')  # use non-GUI backend for Flask app
 
-
 # Grab today's date once, then have it pass through each funtion
-today = pd.Timestamp.now(tz="America/New_York")
+today = datetime.now(tz=ZoneInfo("US/Eastern"))
 
 # List of date filter calculations we can pass through
-l_3_m = (today - pd.DateOffset(weeks=14)).normalize() # Normalize sets the time to midnight
-l_7_m = (today - pd.DateOffset(months=7)).to_period('M') # 
-l_1_y = (today - pd.DateOffset(months=12)).to_period('M') # 
+l_3_m = today - relativedelta(weeks=14)
+l_7_m = today - relativedelta(months=7)
+l_1_y = today - relativedelta(years=1)
 
 
 # Apple workout data from data_cleaning file
-aw_final = Read_Apple_Workouts()
+aw_all = Read_Apple_Workouts()
 
 
 ############### Frequency bar chart grouped by exercise type and month ###############
-month_count_data = gen_month_freq_df(aw_final, l_7_m)
-
+month_count_data = gen_month_freq_df(aw_all, l_7_m)
 def Monthly_Freq_BarChart():
-        
-    plot = (ggplot(month_count_data, aes(x='month_label', y='n', fill='activity')) + 
+    plot = (ggplot(month_count_data, aes(x='month', y='n', fill='activity')) + 
         geom_bar(stat='identity', position='dodge', color = "Black") +
+        
         geom_text(aes(label='n'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment 
         
         scale_fill_brewer(type='qual', palette='Set2') +
@@ -62,11 +63,11 @@ def Monthly_Freq_BarChart():
 
 
 ############### Frequency bar chart grouped by exercise type and week ###############
-week_count_data = gen_week_freq_df(aw_final, l_3_m)
+week_count_data = gen_week_freq_df(aw_all, l_3_m)
 
 def Weekly_Freq_BarChart():
 
-    plot = (ggplot(week_count_data, aes(x='week_label', y='n', fill='activity')) +
+    plot = (ggplot(week_count_data, aes(x='week', y='n', fill='activity')) +
         geom_bar(stat='identity', position='dodge', color = "Black") +
         geom_text(aes(label='n'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment 
         
@@ -98,28 +99,28 @@ def Weekly_Freq_BarChart():
 
 
 ############### Distance per week grouped by exercise type ###############
-full_miles_week = gen_distance_df(aw_final, l_3_m)
+full_miles_week = gen_distance_df(aw_all, l_3_m)
 
 def Distance_BarChart():
         
-    plot = (ggplot(full_miles_week, aes(x='week_label', y='Total_Miles', fill='activity')) +
-        geom_bar(stat='identity', position='dodge', color = "Black") +
-        geom_text(aes(label='Total_Miles'), position=position_dodge(width=.9), va='bottom') +
+    plot = (ggplot(full_miles_week, aes(x='week', y='Total_Miles', fill='activity')) +
+    geom_bar(stat='identity', position='dodge', color = "Black") +
+    geom_text(aes(label='Total_Miles'), position=position_dodge(width=.9), va='bottom') +
 
-        scale_y_continuous(breaks = range(0, 36, 5),
-                        #minor_breaks=range(0, 36, 2),  # Can't do minor ticks 2.5 because int not float :(
-                        limits = [0, 36]) +
+    scale_y_continuous(breaks = range(0, 36, 5),
+                    #minor_breaks=range(0, 36, 2),  # Can't do minor ticks 2.5 because int not float :(
+                    limits = [0, 36]) +
 
-        scale_fill_manual(values={'Running': '#a259d9',   
-            'Cycling': '#ff9800'}) +
+    scale_fill_manual(values={'Running': '#a259d9',   
+        'Cycling': '#ff9800'}) +
 
-        labs(title= "Cardio Miles per Week",
-            x="",
-            y="Miles",
-            fill = "Activity") +
-        theme_seaborn() +
-        theme(figure_size=(10, 5),
-            panel_grid_minor_y = element_line(color = "White", linetype = "dotted")))
+    labs(title= "Cardio Miles per Week",
+        x="",
+        y="Miles",
+        fill = "Activity") +
+    theme_seaborn() +
+    theme(figure_size=(10, 5),
+        panel_grid_minor_y = element_line(color = "White", linetype = "dotted")))
 
     # Render plot to a matplotlib figure
     fig = plot.draw()
@@ -136,10 +137,10 @@ def Distance_BarChart():
 
 
 ############### Minutes per week grouped by cardio and weights ###############
-full_mins_week = gen_mins_df(aw_final, l_3_m)
+full_mins_week = gen_mins_df(aw_all, l_3_m)
 
 def Minutes_BarChart():
-    plot = (ggplot(full_mins_week, aes(x='week_label', y='Total_min', fill='activity_type')) +
+    plot = (ggplot(full_mins_week, aes(x='week', y='Total_min', fill='activity_type')) +
         geom_bar(stat='identity', position='dodge', color = "Black") +
         geom_text(aes(label='Total_min'), format_string='{:.1f}',position=position_dodge(width=.9), va='bottom') + #Format count?
 
@@ -176,19 +177,22 @@ def Minutes_BarChart():
     return mins_plot_url
 
 ############### Minutes per week for all exercises ############### 
-workout_time = gen_workout_time_df(aw_final, l_7_m)
+workout_time = gen_workout_time_df(aw_all, l_3_m)
  
 def Minutes_LineGraph():
-    plot = (ggplot(workout_time, aes(x='week_period', y='Time')) +
+    plot = (ggplot(workout_time, aes(x='week', y='Time')) +
         geom_line(color = "blue", size = 1) +
-        geom_point(aes(size = "n"), alpha = 0.6, color = "blue") +
-        geom_text(aes(label='n'), format_string='{:.0f}', va='bottom') +
+        #geom_point(aes(size = "n"), alpha = 0.6, color = "blue") +
+        #geom_text(aes(label='n'), format_string='{:.0f}', va='bottom') +
+        
         labs(title= "Minutes per Week by Activity",
             x="Week",
             y="Minutes") +
-        scale_x_datetime(date_labels='%b %d', date_breaks='1 week') +
+
+        #scale_x_datetime(date_labels='%b %d', date_breaks='1 week') +
         
         theme_seaborn() +
+        
         theme(panel_grid_minor_y = element_line(color = "gray", linetype = "dotted"),
             figure_size=(10, 5),
             axis_text_x=element_text(angle=25, hjust=1),
@@ -210,11 +214,11 @@ def Minutes_LineGraph():
 
 
 ############### Step count grouped by month ############### 
-steps_day = gen_steps_month_df(l_1_y)
+apple_steps = gen_steps_month_df(l_1_y)
 
 def Steps_Boxplot():
     plot = (
-        ggplot(steps_day, aes(x='month_label', y='steps', fill='month_label')) +
+        ggplot(apple_steps, aes(x='month', y='value', fill='month')) +
 
         geom_boxplot(color="black") +
         stat_summary(fun_data="mean_cl_boot", geom = "point", fill = "white", color = "red") +
@@ -250,17 +254,17 @@ def Steps_Boxplot():
 
 
 ############### Activity Treemap ############### 
-activity_distribution = gen_activity_treemap_df(aw_final, l_3_m)
+activity_distribution = gen_activity_treemap_df(aw_all, l_3_m)
 
 def activity_treemap():
     # Create treemap
     fig = px.treemap(
         activity_distribution,
         path=['label'],         # use custom label for full text
-        values='count',
-        color='count',
+        values='n',
+        color='n',
         color_continuous_scale='Blues')
-    
+
     fig.update_traces(hovertemplate='%{label}')  
     fig.update_layout(showlegend=False, coloraxis_showscale=False)
 

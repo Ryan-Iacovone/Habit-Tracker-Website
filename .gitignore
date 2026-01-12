@@ -3,3 +3,6 @@ __pycache__
 apple/
 habits.db
 .venv
+bike_files/
+habits.db-shm
+habits.db-wal

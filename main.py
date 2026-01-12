@@ -1,4 +1,4 @@
-# Standard Library
+# Standard Libraries
 import os
 import io
 import json
@@ -9,61 +9,34 @@ import pytz
 # Flask
 from flask import Flask, render_template, request, jsonify, send_file
 
-# Database import
-from db import engine 
+# Local database import
+from db import engine, init_db 
 
 # Data Handling
 import pandas as pd
 import numpy as np
+from zoneinfo import ZoneInfo
 from sqlalchemy import text, MetaData, Table, Column, Integer, String, Text, Date, DateTime, func, insert
-from Data_Cleaning import load_book_options, load_workout_options, generate_excise_options, specific_exercise_filter, \
+from data_cleaning import load_book_options, load_workout_options, specific_exercise_filter, \
     gen_steps_month_df, get_kpi_stats # only a df with options for a dropdown
 
 # Visualizations
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.io as pio
-from visualization import Monthly_Freq_BarChart, Weekly_Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap, Steps_Boxplot, l_1_y
+from visualization import Monthly_Freq_BarChart, Weekly_Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap, Steps_Boxplot, l_1_y, l_3_m
 
 
 app = Flask(__name__)
 
-
-def get_client_ip():
-    """Helper to get the client IP address, accounting for proxies."""
-    if request.headers.get("X-Forwarded-For"):
-        # Might contain multiple IPs, take the first one
-        return request.headers.get("X-Forwarded-For").split(",")[0].strip()
-    return request.remote_addr or "unknown"
-
-
-# ------------- NEW: Log every request’s IP ---------------- #
-@app.before_request
-def log_ip():
-    ip = get_client_ip()
-    endpoint = request.path
-    eastern = pytz.timezone("America/New_York")
-    timestamp = datetime.now(eastern).strftime("%Y-%m-%d %H:%M:%S")
-
-    with engine.begin() as conn:
-        conn.execute(
-            text("""INSERT INTO access_log (ip, endpoint, timestamp)
-                    VALUES (:ip, :endpoint, :timestamp)"""),
-            {"ip": ip, "endpoint": endpoint, "timestamp": timestamp},
-        )
-    # no return → request continues normally
-
-
-# List of habits I want to document and their associated questions
-
-######## Consideratding adding a new movie/show and new food meal habit to start doing more of that ########
+########### Statically defining list of habits and their associated questions ########### 
 
 HABITS = {
     "workout": {
         "questions": [
             # Add date selector as the first question for all habits
             {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
-            {"id": "workout_type", "text": "Exercise:", "type": "select", "required": True, "options": load_workout_options()},
+            {"id": "workout_type", "text": "Exercise:", "type": "select", "required": True, "options": load_workout_options(1)},
             {"id": "new_workout", "text": "What new workout would you like to log?", "type": "text", "conditional": {"field": "workout_type", "value": "Other"}},
             
             {"id": "weight", "text": "Weight:", "type": "number", "required": True, "step": 0.5}, # step added to allow for decimal inputs rounded to .5S
@@ -115,44 +88,39 @@ HABITS = {
     }
 }
 
-# initalizing habits websites with sql tables needed to support it
-def init_db():
+
+########### Log users IP address after every made request ###########
+def get_client_ip():
+    """Helper to get the client IP address, accounting for proxies."""
+    if request.headers.get("X-Forwarded-For"):
+        # Might contain multiple IPs, take the first one
+        return request.headers.get("X-Forwarded-For").split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+@app.before_request
+def log_ip():
+    ip = get_client_ip()
+    endpoint = request.path
+
+    ############# Inputting UTC datetime from server as timestamp variable #############
+    ## Converting datetime to strftime format plus adding 0s for proper UTC conversion to sqlite
+    sever_time_utc = datetime.now(tz=ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S') + ".000000"
+
     with engine.begin() as conn:
-
-        # habits db creation
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS habits (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            name TEXT UNIQUE NOT NULL);"""))
-
-        # habit_entries db creation 
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS habit_entries (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            habit_id INTEGER NOT NULL,
-                            log_date DATE NOT NULL,
-                            timestamp DATETIME NOT NULL,
-                            FOREIGN KEY (habit_id) REFERENCES habits(id));"""))
-
-        # habit_answers db creation 
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS habit_answers (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            entry_id INTEGER NOT NULL,
-                            question TEXT NOT NULL,
-                            answer TEXT NOT NULL,
-                            FOREIGN KEY (entry_id) REFERENCES habit_entries(id));"""))
-        
-        # access log table
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS access_log (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            ip TEXT NOT NULL,
-                            endpoint TEXT NOT NULL,
-                            timestamp DATETIME NOT NULL);"""))
+        conn.execute(
+            text("""INSERT INTO access_log (ip, endpoint, timestamp)
+                    VALUES (:ip, :endpoint, :timestamp)"""),
+            {"ip": ip, "endpoint": endpoint, "timestamp": sever_time_utc},
+        )
 
 
+
+########### Default landing to log habits that I statically pass in ###########
 @app.route('/')
 def index():
     return render_template('index.html', habits=HABITS)
 
-
+### Dynamically displaying the questions for each habit ###
 @app.route('/get_questions', methods=['POST'])
 def get_questions():
     habit = request.json.get('habit')
@@ -160,7 +128,7 @@ def get_questions():
         return jsonify(HABITS[habit])
     return jsonify({"error": "Habit not found"}), 404
 
-
+### Logging habit information from website into sqlite ###
 @app.route('/submit_habit', methods=['POST'])
 def submit_habit():
     """Receive form data and store it in a normalized SQL structure"""
@@ -168,9 +136,9 @@ def submit_habit():
         # Convert incoming form data to dict
         form_data = request.form.to_dict()
 
-        # Using EST to input into server since sqlite defaults to utc
-        eastern = pytz.timezone('America/New_York')
-        local_time = datetime.now(eastern).strftime('%Y-%m-%d %H:%M:%S')
+        ############# Inputting UTC datetime from server as timestamp variable #############
+        ## Converting datetime to strftime format plus adding 0s for proper UTC conversion to sqlite
+        sever_time_utc = datetime.now(tz=ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S') + ".000000"
         
         # Extracting habit name and date for input into db later 
         habit_name = form_data.pop("habit_type", "unknown")
@@ -204,17 +172,17 @@ def submit_habit():
 
             # inserting the new habit observation to the db 
             else:
-                conn.execute(text("INSERT INTO habits (name) VALUES (:name)"),
+                conn.execute(text("""INSERT INTO habits (name) VALUES (:name)"""),
                     {"name": habit_name})
                 
-                habit_id = conn.execute(text("SELECT id FROM habits WHERE name = :name"),
+                habit_id = conn.execute(text("""SELECT id FROM habits WHERE name = :name"""),
                     {"name": habit_name}).fetchone()[0] # need the [0] because we're consolidating a step from above
 
             # Insert into habit_entries
             result = conn.execute(
                 text("""INSERT INTO habit_entries (habit_id, log_date, timestamp)
                     VALUES (:habit_id, :log_date, :timestamp)"""),
-                {"habit_id": habit_id, "log_date": habit_date, "timestamp": local_time}
+                {"habit_id": habit_id, "log_date": habit_date, "timestamp": sever_time_utc}
 )
             
             entry_id = result.lastrowid  # Retrieves the unique ID of the row that was just inserted into the habit_entries table
@@ -235,17 +203,17 @@ def submit_habit():
         return jsonify({"status": "error", "message": str(e)}), 500
 
     
-
+########### Exercise filter page displays all instances of a selected exercise ###########   
 @app.route('/exercise_filter', methods=['GET', 'POST'])
 def exercise_filter_page(): 
-     # Default selection or user-submitted one
+    # Loading in exercise options for user
+    exercise_options = load_workout_options(0)
+    
+    # User choosen exercise (defaults to first exerise in exercise_options list?) 
     selected_exercise = request.form.get('exercise')
 
-    # specific_exercise_filter function comes from the visualization.py
+    # Generating HTML table for selected exercise
     df_html_table = specific_exercise_filter(selected_exercise)
-
-    exercise_options = generate_excise_options()
-
 
     return render_template('exercise_filter.html',
                            df_html_table=df_html_table,
@@ -253,6 +221,7 @@ def exercise_filter_page():
                            selected_exercise=selected_exercise)
 
 
+########### visualization page for all apple workouts ###########
 @app.route('/overview_visualizations', methods=['GET', 'POST'])
 def overview_visualization_page():
     month_frequency_plot_url = Monthly_Freq_BarChart()
@@ -264,9 +233,9 @@ def overview_visualization_page():
     steps_boxplot_url = Steps_Boxplot()
 
     # Bringing in steps df primarily used in visualization section here for KPI analysis
-    steps_day = gen_steps_month_df(l_1_y)
+    apple_steps = gen_steps_month_df(l_1_y)
 
-    workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg, steps_L3_mon = get_kpi_stats(steps_day)
+    workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg, steps_L3_mon = get_kpi_stats(apple_steps, l_3_m)
 
     return render_template('overview_visualizations.html',
                           #KPIs 
@@ -294,38 +263,13 @@ def overview_visualization_page():
                           steps_boxplot_url = steps_boxplot_url)
 
 
-def init_10rm_db():
-    """Initialize 10RM tracking tables"""
-    with engine.begin() as conn:
-        # 10RM workout plans table
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS tenrm_plans (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            workout_type TEXT NOT NULL,
-                            week_number TEXT NOT NULL,
-                            exercise_name TEXT NOT NULL,
-                            target_weight REAL NOT NULL,
-                            sets INTEGER NOT NULL,
-                            reps TEXT NOT NULL,
-                            created_date DATE NOT NULL,
-                            UNIQUE(workout_type, week_number, exercise_name));"""))
-        
-        # 10RM workout completions table
-        conn.execute(text("""CREATE TABLE IF NOT EXISTS tenrm_completions (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            plan_id INTEGER NOT NULL,
-                            completion_date DATE NOT NULL,
-                            completed BOOLEAN NOT NULL,
-                            notes TEXT,
-                            timestamp DATETIME NOT NULL,
-                            FOREIGN KEY (plan_id) REFERENCES tenrm_plans(id));"""))
-
-
+########### 10 RM workouts page ###########
 @app.route('/10rm_tracker', methods=['GET'])
 def tenrm_tracker():
-    """Display 10RM workout tracking page with filters"""
+    
     with engine.begin() as conn:
         # Get all workout plans with their latest completion status
-        query = text("""
+        results = conn.execute(text("""
             SELECT 
                 tp.id,
                 tp.workout_type,
@@ -344,10 +288,7 @@ def tenrm_tracker():
                 FROM tenrm_completions 
                 WHERE plan_id = tp.id
             )
-            ORDER BY tp.workout_type, tp.week_number, tp.exercise_name
-        """)
-        
-        results = conn.execute(query).fetchall()
+            ORDER BY tp.workout_type, tp.week_number, tp.exercise_name""")).fetchall()
         
         # Organize data by workout type and week
         organized_data = {}
@@ -374,7 +315,8 @@ def tenrm_tracker():
     
     return render_template('10rm_tracker.html', workout_data=organized_data)
 
-
+### I'm not quite sure what this does because 10rm plans is done manually ###
+# I don't think this code does anything lol 
 @app.route('/add_10rm_plan', methods=['POST'])
 def add_10rm_plan():
     """Add a new 10RM workout plan for a specific week"""
@@ -383,7 +325,8 @@ def add_10rm_plan():
         workout_type = data.get('workout_type')
         week_number = data.get('week_number')
         exercises = data.get('exercises')  # List of {exercise_name, target_weight}
-        
+
+        ########## No clue what to do here lol ##########
         eastern = pytz.timezone('America/New_York')
         current_date = datetime.now(eastern).strftime('%Y-%m-%d')
         
@@ -408,7 +351,7 @@ def add_10rm_plan():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
+### Logging 10 RM exercises I've completed from the plan page
 @app.route('/log_10rm_completion', methods=['POST'])
 def log_10rm_completion():
     """Log completion of a 10RM workout"""
@@ -419,19 +362,20 @@ def log_10rm_completion():
         completed = data.get('completed')
         notes = data.get('notes', '')
         
-        eastern = pytz.timezone('America/New_York')
-        timestamp = datetime.now(eastern).strftime('%Y-%m-%d %H:%M:%S')
+        ############# Inputting UTC datetime from server as timestamp variable #############
+        ## Converting datetime to strftime format plus adding 0s for proper UTC conversion to sqlite
+        sever_time_utc = datetime.now(tz=ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S') + ".000000"
         
         with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO tenrm_completions (plan_id, completion_date, completed, notes, timestamp)
-                VALUES (:plan_id, :completion_date, :completed, :notes, :timestamp)
-            """), {
+                VALUES (:plan_id, :completion_date, :completed, :notes, :timestamp)"""), 
+            {
                 'plan_id': plan_id,
                 'completion_date': completion_date,
                 'completed': completed,
                 'notes': notes,
-                'timestamp': timestamp
+                'timestamp': sever_time_utc
             })
         
         return jsonify({'status': 'success', 'message': 'Completion logged successfully'})
@@ -449,6 +393,5 @@ def shutdown_session(exception=None):
     engine.dispose()
 
 if __name__ == '__main__':
-    init_db()  # Initialize sql database when the app starts for the first time
-    init_10rm_db()
-    app.run(debug=True, host="0.0.0.0", port=8501)
+    init_db()  # Initialize sql database when the app starts for the first time (taken from db.py)
+    app.run(debug=True, host="0.0.0.0", port=8501) 

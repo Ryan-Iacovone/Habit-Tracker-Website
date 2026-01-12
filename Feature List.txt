@@ -8,3 +8,5 @@ Page with high level goals that I can drill down into to get more and more speci
 (Maybe health, mental, education  
 	1. For example, like for my health related goals I'll have strength/weight training, cardio, and flexability.
 		1a. and then within cardio I'll have running, biking, and swimming metrics 
+
+######## Consideratding adding a new movie/show and new food meal habit to start doing more of that ########
