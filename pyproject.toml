@@ -11,6 +11,7 @@ dependencies = [
     "matplotlib>=3.10.7",
     "nbformat>=5.10.4",
     "numpy>=2.3.4",
+    "openpyxl>=3.1.5",
     "plotly>=6.3.1",
     "plotnine>=0.15.1",
     "seaborn>=0.13.2",

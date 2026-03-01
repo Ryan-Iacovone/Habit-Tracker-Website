@@ -267,89 +267,45 @@ def overview_visualization_page():
 @app.route('/10rm_tracker', methods=['GET'])
 def tenrm_tracker():
     
-    with engine.begin() as conn:
+    with engine.connect() as connection:
         # Get all workout plans with their latest completion status
-        results = conn.execute(text("""
-            SELECT 
-                tp.id,
-                tp.workout_type,
-                tp.week_number,
-                tp.exercise_name,
-                tp.target_weight,
-                tp.sets,
-                tp.reps,
-                tc.completion_date,
-                tc.completed,
-                tc.notes
-            FROM tenrm_plans tp
-            LEFT JOIN tenrm_completions tc ON tp.id = tc.plan_id
-            AND tc.id = (
-                SELECT MAX(id) 
-                FROM tenrm_completions 
-                WHERE plan_id = tp.id
-            )
-            ORDER BY tp.workout_type, tp.week_number, tp.exercise_name""")).fetchall()
+        all_10rms = pd.read_sql_query(
+            text("""
+                SELECT tp.id, tp.workout_type, tp.week_number, tp.exercise_name, tp.target_weight, tp.sets, tp.reps, tc.completion_date, tc.completed, tc.notes
+                FROM tenrm_plans tp
+                LEFT JOIN tenrm_completions tc 
+                ON tp.id = tc.plan_id
+                ORDER BY tp.workout_type, tp.week_number, tp.exercise_name
+                """),
+            connection)
         
         # Organize data by workout type and week
-        organized_data = {}
-        for row in results:
-            workout_type = row[1]
-            week_number = row[2]
-            
-            if workout_type not in organized_data:
-                organized_data[workout_type] = {}
-            
-            if week_number not in organized_data[workout_type]:
-                organized_data[workout_type][week_number] = []
-            
-            organized_data[workout_type][week_number].append({
-                'plan_id': row[0],
-                'exercise_name': row[3],
-                'target_weight': row[4],
-                'sets': row[5],
-                'reps': row[6],
-                'completion_date': row[7],
-                'completed': row[8],
-                'notes': row[9]
-            })
+    organized_data = {}
+
+    for _, row in all_10rms.iterrows():
+        
+        workout_type = row['workout_type']
+        week_number = row['week_number']
+        
+        if workout_type not in organized_data:
+            organized_data[workout_type] = {}
+        
+        if week_number not in organized_data[workout_type]:
+            organized_data[workout_type][week_number] = []
+        
+        organized_data[workout_type][week_number].append({
+            'plan_id': row['id'],
+            'exercise_name': row['exercise_name'],
+            'target_weight': row['target_weight'],
+            'sets': row['sets'],
+            'reps': row['reps'],
+            'completion_date': row['completion_date'],
+            'completed': row['completed'],
+            'notes': row['notes']
+        })
     
     return render_template('10rm_tracker.html', workout_data=organized_data)
 
-### I'm not quite sure what this does because 10rm plans is done manually ###
-# I don't think this code does anything lol 
-@app.route('/add_10rm_plan', methods=['POST'])
-def add_10rm_plan():
-    """Add a new 10RM workout plan for a specific week"""
-    try:
-        data = request.json
-        workout_type = data.get('workout_type')
-        week_number = data.get('week_number')
-        exercises = data.get('exercises')  # List of {exercise_name, target_weight}
-
-        ########## No clue what to do here lol ##########
-        eastern = pytz.timezone('America/New_York')
-        current_date = datetime.now(eastern).strftime('%Y-%m-%d')
-        
-        with engine.begin() as conn:
-            for exercise in exercises:
-                # Insert or update the plan
-                conn.execute(text("""
-                    INSERT INTO tenrm_plans (workout_type, week_number, exercise_name, target_weight, created_date)
-                    VALUES (:workout_type, :week_number, :exercise_name, :target_weight, :created_date)
-                    ON CONFLICT(workout_type, week_number, exercise_name) 
-                    DO UPDATE SET target_weight = :target_weight
-                """), {
-                    'workout_type': workout_type,
-                    'week_number': week_number,
-                    'exercise_name': exercise['exercise_name'],
-                    'target_weight': exercise['target_weight'],
-                    'created_date': current_date
-                })
-        
-        return jsonify({'status': 'success', 'message': '10RM plan added successfully'})
-    
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 ### Logging 10 RM exercises I've completed from the plan page
 @app.route('/log_10rm_completion', methods=['POST'])

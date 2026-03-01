@@ -23,6 +23,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 # initalizing habits websites with sql tables needed to support it
 # I've already gone through this and changed types to be sqlite compliant
+# A foreign key is a "pointer" from one table to another. You put the pointer in the table that needs to look up information elsewhere.
 def init_db():
     with engine.begin() as conn:
 
@@ -127,3 +128,26 @@ def init_db():
                             d_unit TEXT, 
                             activity_type TEXT, 
                             workout_id REAL)"""))
+        
+        conn.execute(text("""CREATE TABLE IF NOT EXISTS bike_workout (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            start_time TEXT,
+                            end_time TEXT,
+                            upload_date TEXT)"""))
+        
+        # Bike Units table (reference table - no foreign keys needed)
+        conn.execute(text("""CREATE TABLE IF NOT EXISTS bike_units (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            metric_type TEXT UNIQUE NOT NULL,
+                            metric_unit TEXT NOT NULL,
+                            unit_name TEXT NOT NULL)"""))
+        
+        # Bike Workout Metrics table
+        conn.execute(text("""CREATE TABLE IF NOT EXISTS bike_metrics (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            timestamp TEXT NOT NULL,
+                            workout_id INTEGER NOT NULL,
+                            metric_id INTEGER NOT NULL,
+                            value REAL,
+                            FOREIGN KEY (workout_id) REFERENCES bike_workout(id),
+                            FOREIGN KEY (metric_id) REFERENCES bike_units(id))"""))
