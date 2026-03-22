@@ -271,13 +271,38 @@ def tenrm_tracker():
         # Get all workout plans with their latest completion status
         all_10rms = pd.read_sql_query(
             text("""
-                SELECT tp.id, tp.workout_type, tp.week_number, tp.exercise_name, tp.target_weight, tp.sets, tp.reps, tc.completion_date, tc.completed, tc.notes
+                SELECT tp.id, tp.workout_type, tp.week_number, tp.exercise_name, tp.target_weight, tp.sets, tp.reps, tp.created_date, tc.completion_date, tc.completed, tc.notes, tc.id as tc_id
                 FROM tenrm_plans tp
                 LEFT JOIN tenrm_completions tc 
                 ON tp.id = tc.plan_id
                 ORDER BY tp.workout_type, tp.week_number, tp.exercise_name
-                """),
-            connection)
+                """), connection,
+        parse_dates=["created_date"])
+
+        # Grabbing the most recent date I uploaded 10 RM plans for each workout type
+        ## This can break if I upload workout plans for the same workout type on different days
+        workout_type_dates = pd.read_sql_query(
+            text("""
+                 SELECT tp.workout_type, MAX(tp.created_date) as max_date
+                 FROM tenrm_plans tp
+                 GROUP BY tp.workout_type
+                 """), connection,
+            parse_dates=["max_date"])
+
+    # Merging in max max creation date for each workout type. Then filter out workouts that are not current
+    all_10rms = pd.merge(all_10rms, workout_type_dates, on='workout_type', how='left')
+    all_10rms = all_10rms[all_10rms['created_date'] == all_10rms['max_date']]
+
+    # Sorting values by tc_id in prep to take the last or max value
+    # Group by id because that's the plan idea so that for each plan there's only 1 set of completions data we want
+    all_10rms = (
+        all_10rms
+        .sort_values("tc_id")
+        .groupby("id", dropna=False)
+        .last()
+        .reset_index()
+    )
+
         
         # Organize data by workout type and week
     organized_data = {}
@@ -286,7 +311,7 @@ def tenrm_tracker():
         
         workout_type = row['workout_type']
         week_number = row['week_number']
-        
+
         if workout_type not in organized_data:
             organized_data[workout_type] = {}
         

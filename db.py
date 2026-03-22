@@ -65,7 +65,7 @@ def init_db():
                             sets INTEGER NOT NULL,
                             reps INTEGER NOT NULL,
                             created_date TEXT NOT NULL,
-                            UNIQUE(workout_type, week_number, exercise_name));"""))
+                            UNIQUE(workout_type, week_number, exercise_name, created_date));"""))
         
         # 10RM workout completions table
         conn.execute(text("""CREATE TABLE IF NOT EXISTS tenrm_completions (
