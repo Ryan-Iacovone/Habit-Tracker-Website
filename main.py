@@ -24,7 +24,7 @@ from data_cleaning import load_book_options, load_workout_options, specific_exer
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.io as pio
-from visualization import Monthly_Freq_BarChart, Weekly_Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap, Steps_Boxplot, l_1_y, l_3_m
+from visualization import Monthly_Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap, Steps_Boxplot, l_1_y, l_3_m
 
 
 app = Flask(__name__)
@@ -225,7 +225,7 @@ def exercise_filter_page():
 @app.route('/overview_visualizations', methods=['GET', 'POST'])
 def overview_visualization_page():
     month_frequency_plot_url = Monthly_Freq_BarChart()
-    week_frequency_plot_url = Weekly_Freq_BarChart()
+    #week_frequency_plot_url = Weekly_Freq_BarChart()
     distance_plot_url = Distance_BarChart()
     mins_plot_url = Minutes_BarChart()
     #total_mins_plot_url = Minutes_LineGraph()  
@@ -255,7 +255,7 @@ def overview_visualization_page():
 
                           # Plots 
                           month_frequency_plot_url=month_frequency_plot_url,
-                          week_frequency_plot_url=week_frequency_plot_url,
+                          #week_frequency_plot_url=week_frequency_plot_url,
                           distance_plot_url=distance_plot_url,
                           mins_plot_url=mins_plot_url,
                           #total_mins_plot_url=total_mins_plot_url,

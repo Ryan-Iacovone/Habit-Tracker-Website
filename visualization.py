@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import base64
 import pandas as pd 
 from plotnine import *
-from data_cleaning import Read_Apple_Workouts, gen_month_freq_df, gen_week_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df, gen_steps_month_df
+from data_cleaning import Read_Apple_Workouts, gen_month_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df, gen_steps_month_df
 
 matplotlib.use('Agg')  # use non-GUI backend for Flask app
 
@@ -63,7 +63,7 @@ def Monthly_Freq_BarChart():
 
 
 ############### Frequency bar chart grouped by exercise type and week ###############
-week_count_data = gen_week_freq_df(aw_all, l_3_m)
+""" week_count_data = gen_week_freq_df(aw_all, l_3_m)
 
 def Weekly_Freq_BarChart():
 
@@ -95,7 +95,7 @@ def Weekly_Freq_BarChart():
     frequency_plot_url = f"data:image/png;base64,{static_base64}"
     plt.close(fig)
 
-    return frequency_plot_url 
+    return frequency_plot_url  """
 
 
 ############### Distance per week grouped by exercise type ###############
@@ -137,31 +137,76 @@ def Distance_BarChart():
 
 
 ############### Minutes per week grouped by cardio and weights ###############
-full_mins_week = gen_mins_df(aw_all, l_3_m)
+full_mins_cardio, cardio_labels, full_mins_weight, y_max = gen_mins_df(aw_all, l_3_m)
 
 def Minutes_BarChart():
-    plot = (ggplot(full_mins_week, aes(x='week', y='Total_min', fill='activity_type')) +
-        geom_bar(stat='identity', position='dodge', color = "Black") +
-        geom_text(aes(label='Total_min'), format_string='{:.1f}',position=position_dodge(width=.9), va='bottom') + #Format count?
+    plot = (
+        ggplot() +
 
-        geom_hline(yintercept=150, color="#549f74", linetype='dashed', size=1) + # Cardio goal
-        geom_hline(yintercept=80, color="#b36a62", linetype='dashed', size=1) + # Weights goal
-        
-        scale_y_continuous(breaks = range(0, 450, 50),
-                        #minor_breaks=range(0, 36, 2),  # Can't do minor ticks 2.5 because int not float :(
-                        limits = [0, 400]) +
+        # Cardio stacked bar chart by activity subtypes (nudged to the left)
+        geom_bar(
+            data=full_mins_cardio,
+            mapping=aes(x='x_nudged', y='Total_min', fill='activity'),
+            stat='identity', position='stack', width=2, color='#b36a62', size=0.7 ) +
 
-        # Manual color scales
-        scale_fill_manual(values={'Cardio': '#52be80', 'Weights': '#ec7063'}) +  # Bar colors
-        
-        labs(title= "Minutes per Week by Activity",
-            x="",
+        # Cardio Labels: minutes for each cardio subtype
+        geom_text(
+            data=cardio_labels,
+            mapping=aes(x='x_nudged', y='cumsum_min', label='Total_min'),
+            #format_string='{:.1f}', 
+            va='bottom', color='black', size=10 ) +
+
+        # Weights barchart, not stacked because only 1 activity type (nudged right)
+        geom_bar(
+            data=full_mins_weight,
+            mapping=aes(x='x_nudged', y='Total_min', fill='activity'),
+            stat='identity', position='stack', width=2, color='#549f74', size=0.7 ) +
+
+        # Weight labels: count of weight exercises per week
+        geom_text(data = full_mins_weight,
+                mapping= aes(x='x_nudged', y='Total_min', label='n'), 
+                va='bottom', color = "black", size = 10) +
+
+        # 
+        scale_fill_manual(values= {"Swimming": "#00C9D4",
+                                "Cycling":  "#FF6B2B",
+                                "Running":  "#E63946",
+                                "Walking":  "#9B8EC4",
+                                "TraditionalStrengthTraining":  "#7EBC1A"},
+                                labels={"TraditionalStrengthTraining": "Weights"}) +
+
+        # Setting goal lines for cardio and weight exercises per week
+        geom_hline(yintercept=150, color="#b36a62", linetype='dashed', size=1) +
+        geom_hline(yintercept=80,  color="#549f74", linetype='dashed', size=1) + 
+
+        scale_y_continuous(breaks=range(0, y_max, 50), 
+                        limits=[0, y_max]) +
+
+        scale_x_datetime(date_breaks='1 week', 
+                        date_labels='%b %d',
+                     expand=(.01, 0))  +
+
+        labs(title="Minutes per Week by Activity", 
+            x="", 
             y="Minutes", 
-            fill="Activity") +
-        
-        theme_seaborn() +
-        theme(figure_size=(10, 5),
-            panel_grid_minor_y = element_line(color = "White", linetype = "dotted")))
+            fill="") +
+
+        theme(
+            figure_size=(10, 5),
+            legend_position= (.5, .95),
+            legend_title=element_text(color="#E8EFF5", size=11, weight='bold'),
+            legend_direction='horizontal',
+            legend_text=element_text(color="#A0B4C8", size=9),
+            legend_background= element_blank(), #element_rect(fill="#1E2A38", color=None),
+            legend_key=element_blank(), # Removes boxing/shading around lines in legend
+            #plot_background   = element_rect(fill="#141C26", color=None),
+            #panel_background  = element_rect(fill="#1E2A38", color=None),
+            #panel_grid_major  = element_line(color="#2E3D4F", size=0.5),
+            #panel_grid_minor  = element_line(color="#243040", size=0.3),
+            axis_text = element_text(color="#6B8299", size=9),
+            axis_title = element_text(color="#A0B4C8", size=10),
+            plot_title = element_text(color="#E8EFF5", size=13, weight="bold"))
+    )
     
     # Render plot to a matplotlib figure
     fig = plot.draw()

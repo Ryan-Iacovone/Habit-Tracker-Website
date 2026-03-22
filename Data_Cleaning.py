@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 import pandas as pd
@@ -162,7 +162,7 @@ def gen_month_freq_df(aw_all, l_7_m):
 
 
 ############### Frequency bar chart grouped by exercise type and week ###############
-def gen_week_freq_df(aw_all, l_3_m):
+""" def gen_week_freq_df(aw_all, l_3_m):
     activities = ["Walking", "Cycling", "TraditionalStrengthTraining", "Running", "Swimming"]
 
     df_counts = (aw_all[(aw_all['metric'] == 'Duration') & (aw_all['activity'].isin(activities)) & (aw_all['week_date'] > l_3_m)]
@@ -187,7 +187,7 @@ def gen_week_freq_df(aw_all, l_3_m):
         on='week_date',
         how='left')
 
-    return week_count_data
+    return week_count_data """
 
 
 
@@ -219,31 +219,54 @@ def gen_distance_df(aw_all, l_3_m):
     return full_miles_week
 
 
-############### Minutes per week grouped by cardio and weights ###############
+############### Workout time grouped by workout type, specified with specific exercise ###############
 def gen_mins_df(aw_all, l_3_m):
 
-    mins_week = (aw_all[
-            (aw_all['activity_type'].notna()) &
+    full_mins_cardio = (aw_all[
+            (aw_all['activity_type'] == "Cardio") &
             (aw_all['metric'] == "Duration") &
             (aw_all['week_date'] >= l_3_m)]
-        .groupby(['activity_type', 'week_date'])['value']
+        .groupby(['activity', 'week_date'])['value']
         .agg(Total_min='sum', n='count')  # compute sum and count
         .round(2)  # Round to 2 decimal places
         .reset_index())
 
-    full_mins_week = fill_missing_combinations(
-        original_df=mins_week,
-        aggregated_df=mins_week,
-        time_col='week_date',
-        category_col='activity_type',
-        value_cols=['Total_min', 'n'])
 
-    full_mins_week = pd.merge(full_mins_week,
-        aw_all[['week', 'week_date']].drop_duplicates(),
-        on='week_date',
-        how='left')
+    ## Weight df
+    full_mins_weight = (aw_all[
+            (aw_all['activity_type'] == "Weights") &
+            (aw_all['metric'] == "Duration") &
+            (aw_all['week_date'] >= l_3_m)]
+        .groupby(['activity', 'week_date'])['value']
+        .agg(Total_min='sum', n='count')  # compute sum and count
+        .round(2)  # Round to 2 decimal places
+        .reset_index())
+
+    ## Changing Total_min from float to rounded int
+    full_mins_cardio["Total_min"] = round(full_mins_cardio["Total_min"], 0).astype("int64")
+
+    ## Offsetting the weekdate so I can plot both cardio and weight bars on the same graph
+    full_mins_cardio['x_nudged']  = full_mins_cardio['week_date']  - timedelta(days=1)
+    full_mins_weight['x_nudged'] = full_mins_weight['week_date'] + timedelta(days=1)
     
-    return full_mins_week
+    # Calculating total minutes per week for cardio workouts (used to set y axis max and label calculation)
+    total_mins = full_mins_cardio.groupby(['week_date'])['Total_min'].agg(week_min='sum')
+
+    # Instituing some quality of life for my legend
+    y_cush = 50 
+    y_max = int(y_cush + max(total_mins["week_min"]))
+
+    # Merging total cardio mins for each week to full_mins_cardio and renaming to cardio_labels 
+    cardio_labels = pd.merge(full_mins_cardio, total_mins, on= "week_date", how="left") 
+
+    # Calculating the percetnage of cardio time spent on each activity for each week 
+    cardio_labels["percent_time"] = round(cardio_labels["Total_min"] / cardio_labels["week_min"] * 100, 2)
+
+    # Sorting cardio_labels by week_date and activity for cumcum calculation to match how activities are stacked on barplot 
+    cardio_labels = cardio_labels.sort_values(by=['week_date', 'activity'], ascending=[True, False])
+    cardio_labels["cumsum_min"] = cardio_labels.groupby('week_date')['Total_min'].cumsum()
+
+    return full_mins_cardio, cardio_labels, full_mins_weight, y_max 
 
 
 ############### Minutes per week for all exercises ############### 
@@ -297,7 +320,7 @@ def gen_steps_month_df(l_1_y):
                     WHERE type = 'StepCount' AND value IS NOT NULL and date(startDate, 'start of month','+1 month','-1 day') >= :t_filter
                     GROUP BY date(startDate)
                     ORDER BY 'date'"""), connection,
-            dtype={"value": "Int64"},
+            dtype={"value": "int64"},
             params={"t_filter": l_1_y},
             parse_dates=['date', 'month_date'])
 

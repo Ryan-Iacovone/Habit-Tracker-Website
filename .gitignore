@@ -1,8 +1,14 @@
 .env
 __pycache__
 apple/
+# Databse
 habits.db
+
+# Environment
+.idea
 .venv
 bike_files/
+
+# Exclude SQLite temporary files
 habits.db-shm
 habits.db-wal

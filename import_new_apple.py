@@ -533,7 +533,7 @@ if __name__ == '__main__':
     time.sleep(1)
 
     ## Directory where all fit files are saved
-    bike_directory = r"C:\Users\ryani\Coding Projects\Habit Tracker Website\bike_files"
+    bike_directory = r"bike_files"
 
     ## Defining server upload time once to use in multiple places
     today_upload_date = date.today().strftime("%m-%d-%Y")
