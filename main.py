@@ -29,7 +29,7 @@ from visualization import Monthly_Freq_BarChart, Distance_BarChart, Minutes_BarC
 
 app = Flask(__name__)
 
-########### Statically defining list of habits and their associated questions ########### 
+########### Statically defining list of habits and their associated questions ########### :) 
 
 HABITS = {
     "workout": {
