@@ -13,3 +13,5 @@ services:
     working_dir: /app # Not needed here because in dockerfile
 
     command: uv run main.py 
+
+    restart: unless-stopped  # Automatically restart the container if it stops, unless explicitly stopped
