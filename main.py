@@ -375,4 +375,4 @@ def shutdown_session(exception=None):
 
 if __name__ == '__main__':
     init_db()  # Initialize sql database when the app starts for the first time (taken from db.py)
-    app.run(debug=True, host="0.0.0.0", port=8501) 
+    app.run(debug=False, host="0.0.0.0", port=8501) 

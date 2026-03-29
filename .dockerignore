@@ -1,0 +1,37 @@
+# Virtual environment - this is almost certainly your 6GB culprit
+.venv
+
+# Database - you mount this at runtime so it doesn't need to be baked in
+habits.db
+habits.db-shm
+habits.db-wal
+
+# Misc repo files not needed for container
+bikes_files/
+apple/
+CLAUDE.md
+Feature List.txt
+fix.ipynb
+import_new_apple.py
+webapp_workflow.bat
+
+# Git
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+
+# Local dev files
+.env
+*.log
+.idea/
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
+nginx.conf

@@ -1,17 +1,20 @@
-name: habit-website  # sets the Compose project name (Otherwise pulls from directory name)
+name: habit-website
+
 services:
   habit-website:
-  
     build: .
-
-    ports:
-      - "8501:8501"  # Maps container's port 8501 to host's 8501
-
     volumes:
-      - ./habits.db:/app/habits.db  # Mount the SQLite DB file from host into container
+      - ./habits.db:/app/habits.db
+    command: uv run gunicorn -w 2 -b 0.0.0.0:8501 main:app
+    restart: unless-stopped
+    # No ports exposed here anymore — Nginx is the only public entry point
 
-    working_dir: /app # Not needed here because in dockerfile
-
-    command: uv run main.py 
-
-    restart: unless-stopped  # Automatically restart the container if it stops, unless explicitly stopped
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"        # Nginx is now the only thing exposed to the outside world
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf  # Mount your config in
+    depends_on:
+      - habit-website  # Don't start Nginx until Flask is up
+    restart: unless-stopped
