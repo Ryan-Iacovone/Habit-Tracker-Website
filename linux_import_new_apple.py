@@ -8,14 +8,14 @@ from zoneinfo import ZoneInfo
 from datetime import datetime, date
 from fitparse import FitFile
 
-# Local database import
-from db import engine 
-
-from apple.apple_health_xml_convert import preprocess_to_temp_file, strip_invisible_character, xml_to_csv, save_to_csv, \
+from apple.apple_health_xml_convert_linux import preprocess_to_temp_file, strip_invisible_character, xml_to_csv, save_to_csv, \
 remove_temp_file
 
+# Static creation of the engine to connect to linux sql db
+engine = create_engine(r"sqlite:///\\192.168.1.164\WarpDrive\habit_website\habits.db")
+
 def apple_health_xml_convert():
-    file_path = r"apple/export.xml"
+    file_path = r"\\192.168.1.164\WarpDrive\habit_website\apple\export.xml" # Changed file path
     temp_file_path = preprocess_to_temp_file(file_path)
     health_df = xml_to_csv(temp_file_path)
     save_to_csv(health_df)
@@ -433,7 +433,7 @@ def upload_fit_to_apple(fit_total, apple_cycle):
     combined = pd.merge(fit_total, apple_cycle, left_on="fit_date", right_on="apple_date", how="left")
 
     # Meters to miles conversion
-    combined["max_distance_miles"] = (combined["max_distance"] / 1609).round(2)
+    combined["max_distance_miles"] = ( int(combined["max_distance"]) / 1609).round(2)
 
     # Converting start date to sqlite appropriate format
     combined["StartDate"] = combined["StartDate"].dt.strftime('%Y-%m-%d %H:%M:%S') + ".000000"
@@ -476,7 +476,7 @@ if __name__ == '__main__':
 
     # Applying logic to smartly find today's apple health export file
     ## Defining the subddirectroy where apple docs live
-    directory = "apple/"
+    directory = r"\\192.168.1.164\WarpDrive\habit_website\apple"  # Changed file path for linux computer
     ## Grabbing today's date
     today = datetime.now().strftime('%Y-%m-%d') # Format: '2025-12-10' December 10th, 2025  datetime.now
     ## Initializing apple_file variable
@@ -529,7 +529,7 @@ if __name__ == '__main__':
     time.sleep(1)
 
     ## Directory where all fit files are saved
-    bike_directory = r"bike_files"
+    bike_directory = r"\\192.168.1.164\WarpDrive\habit_website\bike_files"  # Changed directory for linux computer
 
     ## Defining server upload time once to use in multiple places
     today_upload_date = date.today().strftime("%m-%d-%Y")
