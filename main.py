@@ -74,7 +74,7 @@ HABITS = {
         "questions": [
             {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
             {"id": "time", "text": "Time of Day:", "type": "select", "required": True, "options": ["Morning", "Evening", "Both"]},
-            {"id": "stretch_type", "text": "Stretch:", "type": "select", "required": True, "options": ["PT-SP Ankle Stabliziation", "Heel Drop"]},
+            {"id": "stretch_type", "text": "Stretch:", "type": "select", "required": True, "options": ["Standing Childs Pose", "Wall Slides", "Triceps Stretch", "Seated Assisted External Rotation", "Floor Slides", "Shoulder Rolls" ]},
             {"id": "comment", "text": "Notes:", "type": "text"}
         ]
     },
