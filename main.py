@@ -5,6 +5,7 @@ import json
 import base64
 from datetime import datetime, timedelta
 import pytz
+import calendar
 
 # Flask
 from flask import Flask, render_template, request, jsonify, send_file
@@ -363,6 +364,143 @@ def log_10rm_completion():
     
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+
+@app.route('/habit_calendar')
+def habit_calendar_page():
+    # Used to find default month and year
+    today = datetime.now(tz=ZoneInfo("EST")).date()
+
+    # Read ?year= and ?month= from the URL, default to current month
+    year  = int(request.args.get('year',  today.year))
+    month = int(request.args.get('month', today.month))
+
+    # Clamp month to 1–12 in case of edge values (probaby not necessary)
+    if month < 1:  month = 1
+    if month > 12: month = 12
+
+    # monthrange returns (first_weekday, days_in_month) and we only care about days in month
+    days_in_month = calendar.monthrange(year, month)[1]
+
+    # Aligning weeks to match static calendar in html where we start on Monday 
+    first_weekday_mon = calendar.weekday(year, month, 1)   # 0=Mon
+    
+    # calendar.weekday() returns 0=Mon, but if we want 0=Sun
+    # so shift: Mon->1, Tue->2 ... Sat->6, Sun->0
+    #first_weekday_sun = (first_weekday_mon + 1) % 7    # 0=Sun
+
+    # Prev / next month for nav arrows
+    if month == 1:
+        prev_year, prev_month = year - 1, 12
+    else:
+        prev_year, prev_month = year, month - 1
+
+    if month == 12:
+        next_year, next_month = year + 1, 1
+    else:
+        next_year, next_month = year, month + 1
+
+    # Querying relevant habits for specific year and month given
+    
+    ## Building month and year string based on given month and year to filter habit data to specific month
+    ## Formatting string for month ensures there's a leading 0 for months 1-9
+    month_start = f"{year}-{month:02d}-01"
+    month_end   = f"{year}-{month:02d}-{days_in_month}"
+
+    with engine.begin() as conn:
+        mon_habits_df = pd.read_sql("""SELECT he.log_date,  h.name as habit_type, ha.entry_id, ha.question, ha.answer
+                            FROM habit_answers ha
+                            LEFT OUTER JOIN habit_entries he
+                            ON he.id = ha.entry_id
+                            LEFT OUTER JOIN habits h
+                            ON h.id = he.habit_id
+                            WHERE h.name in ('stretch', 'reading') AND ha.question in ('stretch_type', 'book_title') AND he.log_date BETWEEN :start_mon AND :end_mon
+                            ORDER BY date(he.log_date ) DESC """, conn,
+                        params= {"start_mon": month_start, "end_mon": month_end },
+                        parse_dates=["log_date"])
+
+    # Total distinct habits that exist (for "all completed" check)
+    # Not sure if this is calculating correctly based on off the json blob
+    # And would want to tailor this to specific habits of importance
+    total_habits = len(HABITS)
+
+    calendar_data = {}
+    for day in range(1, days_in_month + 1):
+        day_date   = datetime(year, month, day)
+        is_future  = day_date.date() > today
+        habits_logged = []
+        mon_habits_df_filt = mon_habits_df[mon_habits_df["log_date"] == day_date]
+
+        for habit_type, group in mon_habits_df_filt.groupby("habit_type"):
+
+            if habit_type == "reading":
+                book    = group.loc[group["question"] == "book_title",  "answer"].values
+                #pages   = group.loc[group["question"] == "pages",       "answer"].values
+                tooltip = f"{book[0]}: page_holder"
+
+            elif habit_type == "stretch":
+                stretches = group.loc[group["question"] == "stretch_type", "answer"].values
+                #times     = group.loc[group["question"] == "time",         "answer"].values
+
+                tooltip = ""
+                for stretch in stretches:
+                    #time = times[i] if i < len(times) else "?"
+                    tooltip += f"{stretch}: time\n"
+
+            else:
+                tooltip = habit_type.title()
+
+            habits_logged.append({
+                "habit_type":   habit_type,
+                "display_name": habit_type.title(),
+                "tooltip":      tooltip,
+            })
+        #habits_logged = mon_habits_df[mon_habits_df["log_date"] == day_date]["habit_type"].unique().tolist()        
+        # habits_logged = mon_habits_df.loc[mon_habits_df["log_date"] == day_date, "habit_type"].unique().tolist()
+        count = len(habits_logged)
+
+        # Calculating Status
+        if is_future:
+            status = "future"
+        elif count == 0:
+            status = "missed"
+        elif count >= 3:
+            status = "completed"
+        else:
+            status = "partial"
+
+        calendar_data[day] = {
+            "habits": habits_logged,
+            "status": status,
+            "is_future": is_future,
+            }
+
+    # Summary stats (past days only)
+    days_completed    = sum(1 for d in calendar_data.values() if d["status"] == "completed")
+    days_partial      = sum(1 for d in calendar_data.values() if d["status"] == "partial")
+    days_missed       = sum(1 for d in calendar_data.values() if d["status"] == "missed")
+    total_habits_logged = sum(len(d["habits"]) for d in calendar_data.values())
+
+    return render_template('habit_calendar.html',
+        calendar_data    = calendar_data,
+        year             = year,
+        month            = month,
+        month_name       = calendar.month_name[month],
+        days_in_month    = days_in_month,
+        first_weekday    = first_weekday_mon,
+        today_day        = today.day,
+        today_month      = today.month,
+        today_year       = today.year,
+        prev_year        = prev_year,
+        prev_month       = prev_month,
+        next_year        = next_year,
+        next_month       = next_month,
+        days_completed   = days_completed,
+        days_partial     = days_partial,
+        days_missed      = days_missed,
+        total_habits_logged = total_habits_logged,
+    )
 
 
 # Clean shutdown of DB connections
