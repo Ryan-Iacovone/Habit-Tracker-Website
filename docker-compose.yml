@@ -12,7 +12,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "80:80"        # Nginx is now the only thing exposed to the outside world
+      - "8501:8501"        # Nginx is now the only thing exposed to the outside world
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf  # Mount your config in
     depends_on:
