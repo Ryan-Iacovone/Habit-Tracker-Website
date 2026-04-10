@@ -296,6 +296,12 @@
         .habit-tag.acne     { background: #8e44ad; color: white; }
         .habit-tag.default  { background: #7f8c8d; color: white; }
 
+        /* Touch tap support — JS adds/removes this class */
+        .habit-tag.tooltip-active .habit-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
         /* ── Monthly summary bar ── */
         .summary-bar {
             display: flex;
@@ -474,5 +480,38 @@
     </div><!-- /calendar-wrapper -->
 
 </div><!-- /container -->
+
+<script>
+    document.querySelectorAll('.habit-tag').forEach(function(tag) {
+        tag.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // stops the browser from also firing a click
+
+            // If this tooltip is already open, just close it and stop
+            if (tag.classList.contains('tooltip-active')) {
+                tag.classList.remove('tooltip-active');
+                return;
+            }
+
+            // Close any other open tooltips first
+            document.querySelectorAll('.habit-tag.tooltip-active').forEach(function(other) {
+                other.classList.remove('tooltip-active');
+            });
+
+            // Open this one
+            tag.classList.add('tooltip-active');
+        });
+    });
+
+    // Tap anywhere else on the page to dismiss
+    document.addEventListener('touchstart', function(e) {
+        if (!e.target.closest('.habit-tag')) {
+            document.querySelectorAll('.habit-tag.tooltip-active').forEach(function(tag) {
+                tag.classList.remove('tooltip-active');
+            });
+        }
+    });
+</script>
+
 </body>
+
 </html>
