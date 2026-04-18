@@ -432,14 +432,24 @@ def upload_fit_to_apple(fit_total, apple_cycle):
     # Using fit file data to find corresponding apple bike workouts 
     combined = pd.merge(fit_total, apple_cycle, left_on="fit_date", right_on="apple_date", how="left")
 
-    try:
-        # Meters to miles conversion
-        combined["max_distance_miles"] = ( int(combined["max_distance"]) / 1609).round(2)
-        
-    except TypeError:
-        print("Triggering TyperError exception")
-        print("Marking max_distance_miles with placeholder 5")
-        combined["max_distance_miles"] = 5
+    #  Trying a different way to approach this conversion when an object is passed through  
+    combined["max_distance_miles"] = (
+        pd.to_numeric(combined["max_distance"], errors="coerce") / 1609
+    ).round(2)
+
+    combined["max_distance_miles"] = combined["max_distance_miles"].fillna(5)
+
+#    try:
+#        # Meters to miles conversion
+#        combined["max_distance_miles"] = ( int(combined["max_distance"]) / 1609).round(2)
+#        
+#    except TypeError:
+#        print("Triggering TyperError exception")
+#        print("Marking max_distance_miles with placeholder 5 miles")
+#        combined["max_distance_miles"] = 5
+#
+#        # Printing out the result of assign 5 above to ensure this new variables gets input 
+#        print(combined["max_distance_miles"].iloc[0]) 
 
 
     # Converting start date to sqlite appropriate format

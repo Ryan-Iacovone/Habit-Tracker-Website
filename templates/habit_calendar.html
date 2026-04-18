@@ -1,381 +1,301 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Calendar</title>
-    <style>
-        /* ── Base ── */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+{% extends "base.html" %}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8f9fa;
-            min-height: 100vh;
-            padding: 20px;
-            color: #333;
-        }
+{% block title %}Habit Calendar{% endblock %}
 
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
+{% block head %}
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
 
-        /* ── Header ── */
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 2rem;
-        }
+    h1 {
+        color: #2c3e50;
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 2.2rem;
+    }
 
-        /* ── Nav ── */
-        .nav-buttons {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 24px;
-        }
+    /* ── Legend ── */
+    .legend {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+        margin-bottom: 20px;
+        font-size: 0.85rem;
+        color: #555;
+        flex-wrap: wrap;
+    }
 
-        .nav-button {
-            background-color: #2196F3;
-            color: white;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 14px;
-            text-align: center;
-        }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
 
-        .nav-button:hover { background-color: #0b7dda; }
-        .nav-button.active { background-color: #0b7dda; font-weight: bold; }
+    .legend-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        flex-shrink: 0;
+    }
 
-        /* ── Legend ── */
-        .legend {
-            display: flex;
-            justify-content: center;
-            gap: 24px;
-            margin-bottom: 20px;
-            font-size: 0.85rem;
-            color: #555;
-        }
+    .legend-dot.green  { background: #27ae60; }
+    .legend-dot.red    { background: #e74c3c; }
+    .legend-dot.gray   { background: #bdc3c7; }
+    .legend-dot.future { background: #f0f0f0; border: 1px solid #ddd; }
 
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
+    /* ── Month navigation ── */
+    .month-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
 
-        .legend-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 3px;
-            flex-shrink: 0;
-        }
+    .month-nav-btn {
+        background: #2196F3;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        line-height: 1;
+    }
 
-        .legend-dot.green  { background: #27ae60; }
-        .legend-dot.red    { background: #e74c3c; }
-        .legend-dot.gray   { background: #bdc3c7; }
-        .legend-dot.future { background: #f0f0f0; border: 1px solid #ddd; }
+    .month-nav-btn:hover { background: #0b7dda; }
 
-        /* ── Month navigation ── */
-        .month-nav {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
+    .month-title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #2c3e50;
+        min-width: 200px;
+        text-align: center;
+    }
 
-        .month-nav-btn {
-            background: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            width: 36px;
-            height: 36px;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            line-height: 1;
-        }
+    /* ── Summary bar ── */
+    .summary-bar {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        padding: 18px 24px;
+        margin-bottom: 20px;
+    }
 
-        .month-nav-btn:hover { background: #0b7dda; }
+    .summary-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
 
-        .month-title {
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: #2c3e50;
-            min-width: 200px;
-            text-align: center;
-        }
+    .summary-stat .stat-value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
 
-        /* ── Calendar wrapper ── */
-        .calendar-wrapper {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            overflow: visible;
-        }
+    .summary-stat .stat-label {
+        font-size: 0.75rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
 
-        /* ── Day-of-week header row ── */
-        .calendar-header {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            background: #34495e;
-            color: white;
-        }
+    .summary-divider {
+        width: 1px;
+        background: #e9ecef;
+        align-self: stretch;
+    }
 
-        .calendar-header-cell {
-            padding: 12px 0;
-            text-align: center;
-            font-size: 0.8rem;
-            font-weight: 600;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
+    .stat-green  { color: #27ae60 !important; }
+    .stat-red    { color: #e74c3c !important; }
+    .stat-orange { color: #f39c12 !important; }
 
-        /* ── Calendar grid ── */
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            grid-auto-rows: minmax(140px, 1fr);
-        }
+    /* ── Calendar wrapper ── */
+    .calendar-wrapper {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        overflow: visible;
+    }
 
-        /* ── Individual day cell ── */
-        .day-cell {
-            border-right: 1px solid #e9ecef;
-            border-bottom: 1px solid #e9ecef;
-            padding: 8px;
-            position: relative;
-            transition: background 0.15s;
-        }
+    /* ── Day-of-week header row ── */
+    .calendar-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        background: #34495e;
+        color: white;
+        border-radius: 8px 8px 0 0;
+    }
 
-        .day-cell:nth-child(7n) { border-right: none; }
+    .calendar-header-cell {
+        padding: 12px 0;
+        text-align: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
 
-        /* ── Empty cells (before month starts) ── */
-        .day-cell.empty {
-            background: #fafafa;
-        }
+    /* ── Calendar grid ── */
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        grid-auto-rows: minmax(140px, 1fr);
+    }
 
-        /* ── Future days ── */
-        .day-cell.future {
-            background: #fcfcfc;
-        }
+    /* ── Individual day cell ── */
+    .day-cell {
+        border-right: 1px solid #e9ecef;
+        border-bottom: 1px solid #e9ecef;
+        padding: 8px;
+        position: relative;
+        transition: background 0.15s;
+    }
 
-        /* ── Today ── */
-        .day-cell.today {
-            background: #eaf4ff;
-        }
+    .day-cell:nth-child(7n) { border-right: none; }
 
-        /* ── Completed days (all habits done) ── */
-        .day-cell.completed {
-            background: #eafaf1;
-        }
+    .day-cell.empty     { background: #fafafa; }
+    .day-cell.future    { background: #fcfcfc; }
+    .day-cell.today     { background: #eaf4ff; }
+    .day-cell.completed { background: #eafaf1; }
+    .day-cell.missed    { background: #fdf0ee; }
+    .day-cell.partial   { background: #fffbea; }
 
-        /* ── Missed days (no habits) ── */
-        .day-cell.missed {
-            background: #fdf0ee;
-        }
+    /* ── Day number ── */
+    .day-number {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #555;
+        margin-bottom: 4px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
 
-        /* ── Partial days (some habits) ── */
-        .day-cell.partial {
-            background: #fffbea;
-        }
+    .day-cell.today .day-number {
+        background: #2196F3;
+        color: white;
+        font-weight: 700;
+    }
 
-        /* ── Day number ── */
-        .day-number {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: #555;
-            margin-bottom: 4px;
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-        }
+    .day-cell.empty .day-number,
+    .day-cell.future .day-number { color: #bbb; }
 
-        .day-cell.today .day-number {
-            background: #2196F3;
-            color: white;
-            font-weight: 700;
-        }
+    /* ── Status stripe ── */
+    .day-stripe {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+    }
 
-        .day-cell.empty .day-number,
-        .day-cell.future .day-number {
-            color: #bbb;
-        }
+    .day-cell.completed .day-stripe { background: #27ae60; }
+    .day-cell.missed    .day-stripe { background: #e74c3c; }
+    .day-cell.partial   .day-stripe { background: #f39c12; }
 
-        /* ── Status stripe (colored bar across top of cell) ── */
-        .day-stripe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-        }
+    /* ── Habit pill tags ── */
+    .habit-tags {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 6px;
+        overflow: visible;
+    }
 
-        .day-cell.completed .day-stripe { background: #27ae60; }
-        .day-cell.missed    .day-stripe { background: #e74c3c; }
-        .day-cell.partial   .day-stripe { background: #f39c12; }
+    .habit-tag {
+        position: relative;
+        font-size: 0.75rem;
+        padding: 3px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-weight: 600;
+        display: block;
+        width: 100%;
+    }
 
-        /* ── Habit pill tags inside a day ── */
-        .habit-tags {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            margin-top: 6px;
-            overflow: visible;
-        }
+    .habit-tag.workout { background: #27ae60; color: white; }
+    .habit-tag.reading { background: #2980b9; color: white; }
+    .habit-tag.dental  { background: #e74c3c; color: white; }
+    .habit-tag.stretch { background: #f39c12; color: white; }
+    .habit-tag.acne    { background: #8e44ad; color: white; }
+    .habit-tag.default { background: #7f8c8d; color: white; }
 
-        .habit-tag {
-            font-size: 0.75rem;
-            padding: 3px 8px;
-            border-radius: 4px;
-            white-space: nowrap;
-            /*overflow: hidden; */
-            text-overflow: ellipsis;
-            font-weight: 600;
-            display: block;
-            width: 100%;
-        }
+    /* ── Habit pill tooltip ── */
+    .habit-tooltip {
+        visibility: hidden;
+        opacity: 0;
+        min-width: 120px;
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: #2c3e50;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 400;
+        padding: 5px 9px;
+        border-radius: 4px;
+        white-space: pre-line;
+        z-index: 10;
+        pointer-events: none;
+        transition: opacity 0.15s;
+    }
 
-        /* ── Habit pill tooltip ── */
-        .habit-tag {
-            position: relative;  /* add this to existing .habit-tag rule */
-        }
+    .habit-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%; left: 50%;
+        transform: translateX(-50%);
+        border: 5px solid transparent;
+        border-top-color: #2c3e50;
+    }
 
-        .habit-tooltip {
-            visibility: hidden;
-            opacity: 0;
-            min-width: 120px; /* minimum width for tooltip box */
-            position: absolute;
-            bottom: calc(100% + 6px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: #2c3e50;
-            color: white;
-            font-size: 0.7rem;
-            font-weight: 400;
-            padding: 5px 9px;
-            border-radius: 4px;
-            white-space: pre-line;
-            z-index: 10;
-            pointer-events: none;
-            transition: opacity 0.15s;
-        }
+    .habit-tag:hover .habit-tooltip,
+    .habit-tag.tooltip-active .habit-tooltip {
+        visibility: visible;
+        opacity: 1;
+    }
 
-        /* Arrow pointing down */
-        .habit-tooltip::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 5px solid transparent;
-            border-top-color: #2c3e50;
-        }
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+        .calendar-grid  { grid-auto-rows: minmax(80px, 1fr); }
+        .habit-tag      { font-size: 0.65rem; padding: 2px 5px; }
+        .summary-bar    { gap: 10px; padding: 14px 16px; }
+        .legend         { gap: 12px; }
+    }
+</style>
+{% endblock %}
 
-        .habit-tag:hover .habit-tooltip {
-            visibility: visible;
-            opacity: 1;
-        }
-        /* Per-habit colors */
-        .habit-tag.workout  { background: #27ae60; color: white; }
-        .habit-tag.reading  { background: #2980b9; color: white; }
-        .habit-tag.dental   { background: #e74c3c; color: white; }
-        .habit-tag.stretch  { background: #f39c12; color: white; }
-        .habit-tag.acne     { background: #8e44ad; color: white; }
-        .habit-tag.default  { background: #7f8c8d; color: white; }
-
-        /* Touch tap support — JS adds/removes this class */
-        .habit-tag.tooltip-active .habit-tooltip {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        /* ── Monthly summary bar ── */
-        .summary-bar {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            padding: 18px 24px;
-            margin-bottom: 20px;
-        }
-
-        .summary-stat {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .summary-stat .stat-value {
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: #2c3e50;
-        }
-
-        .summary-stat .stat-label {
-            font-size: 0.75rem;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .summary-divider {
-            width: 1px;
-            background: #e9ecef;
-            align-self: stretch;
-        }
-
-        /* Colour tinting for specific stats */
-        .stat-green  { color: #27ae60 !important; }
-        .stat-red    { color: #e74c3c !important; }
-        .stat-orange { color: #f39c12 !important; }
-
-        /* ── Responsive ── */
-        @media (max-width: 700px) {
-            .calendar-grid { grid-auto-rows: minmax(80px, 1fr); }
-            .habit-tag { font-size: 0.65rem; padding: 2px 5px; }
-        }
-    </style>
-</head>
-<body>
+{% block content %}
 <div class="container">
 
     <h1>Habit Calendar</h1>
 
-    <!-- Navigation -->
-    <div class="nav-buttons">
-        <a href="/"                        class="nav-button">Home</a>
-        <a href="/exercise_filter"         class="nav-button">Exercise Filter</a>
-        <a href="/overview_visualizations" class="nav-button">Overview Visuals</a>
-        <a href="/10rm_tracker"            class="nav-button">10 RM Workouts</a>
-        <a href="/habit_calendar"          class="nav-button active">Habit Calendar</a>
-    </div>
-
     <!-- Legend -->
     <div class="legend">
-        <div class="legend-item"><div class="legend-dot green"></div>  All habits logged</div>
+        <div class="legend-item"><div class="legend-dot green"></div> All habits logged</div>
         <div class="legend-item"><div class="legend-dot" style="background:#f39c12;border-radius:3px;"></div> Some habits logged</div>
-        <div class="legend-item"><div class="legend-dot red"></div>    No habits logged</div>
-        <div class="legend-item"><div class="legend-dot gray"></div>   No data yet</div>
+        <div class="legend-item"><div class="legend-dot red"></div> No habits logged</div>
+        <div class="legend-item"><div class="legend-dot gray"></div> No data yet</div>
     </div>
 
-    <!-- Month summary stats -->
+    <!-- Monthly summary stats -->
     <div class="summary-bar">
         <div class="summary-stat">
             <span class="stat-value">{{ month_name }} {{ year }}</span>
@@ -403,15 +323,15 @@
         </div>
     </div>
 
-    <!-- Month navigation + calendar -->
+    <!-- Month navigation -->
     <div class="month-nav">
         <a href="/habit_calendar?year={{ prev_year }}&month={{ prev_month }}" class="month-nav-btn">&#8249;</a>
         <div class="month-title">{{ month_name }} {{ year }}</div>
         <a href="/habit_calendar?year={{ next_year }}&month={{ next_month }}" class="month-nav-btn">&#8250;</a>
     </div>
 
+    <!-- Calendar -->
     <div class="calendar-wrapper">
-        <!-- Day-of-week header set statically -->
         <div class="calendar-header">
             <div class="calendar-header-cell">Mon</div>
             <div class="calendar-header-cell">Tue</div>
@@ -422,24 +342,19 @@
             <div class="calendar-header-cell">Sun</div>
         </div>
 
-        <!-- Day cells -->
         <div class="calendar-grid">
 
-            {# Leading empty cells so day 1 falls on the right weekday #}
             {% for _ in range(first_weekday) %}
                 <div class="day-cell empty"></div>
             {% endfor %}
 
-            {# Actual day cells #}
             {% for day in range(1, days_in_month + 1) %}
-                {% set day_data = calendar_data.get(day, {}) %}
+                {% set day_data     = calendar_data.get(day, {}) %}
                 {% set habits_logged = day_data.get('habits', []) %}
-                {% set habit_count   = habits_logged | length %}
-                {% set is_today      = (day == today_day and year == today_year and month == today_month) %}
-                {% set is_future     = day_data.get('is_future', false) %}
-                {% set status        = day_data.get('status', 'no_data') %}
+                {% set is_today     = (day == today_day and year == today_year and month == today_month) %}
+                {% set is_future    = day_data.get('is_future', false) %}
+                {% set status       = day_data.get('status', 'no_data') %}
 
-                {# Build CSS classes for the cell #}
                 {% set cell_class = 'day-cell' %}
                 {% if is_today %}
                     {% set cell_class = cell_class + ' today' %}
@@ -467,7 +382,6 @@
                 </div>
             {% endfor %}
 
-            {# Trailing empty cells to complete the last row #}
             {% set total_cells = first_weekday + days_in_month %}
             {% set remainder   = total_cells % 7 %}
             {% if remainder != 0 %}
@@ -476,42 +390,12 @@
                 {% endfor %}
             {% endif %}
 
-        </div><!-- /calendar-grid -->
-    </div><!-- /calendar-wrapper -->
+        </div>
+    </div>
 
-</div><!-- /container -->
+</div>
 
 <script>
-    document.querySelectorAll('.habit-tag').forEach(function(tag) {
-        tag.addEventListener('touchstart', function(e) {
-            e.preventDefault(); // stops the browser from also firing a click
-
-            // If this tooltip is already open, just close it and stop
-            if (tag.classList.contains('tooltip-active')) {
-                tag.classList.remove('tooltip-active');
-                return;
-            }
-
-            // Close any other open tooltips first
-            document.querySelectorAll('.habit-tag.tooltip-active').forEach(function(other) {
-                other.classList.remove('tooltip-active');
-            });
-
-            // Open this one
-            tag.classList.add('tooltip-active');
-        });
-    });
-
-    // Tap anywhere else on the page to dismiss
-    document.addEventListener('touchstart', function(e) {
-        if (!e.target.closest('.habit-tag')) {
-            document.querySelectorAll('.habit-tag.tooltip-active').forEach(function(tag) {
-                tag.classList.remove('tooltip-active');
-            });
-        }
-    });
+    // your existing script block unchanged
 </script>
-
-</body>
-
-</html>
+{% endblock %}

@@ -6,10 +6,8 @@ import io
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
-import base64
-import pandas as pd 
 from plotnine import *
-from data_cleaning import Read_Apple_Workouts, gen_month_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df, gen_steps_month_df
+from data_cleaning import Read_Apple_Workouts, gen_month_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df, gen_steps_month_df, gen_weekly_workout_time_df
 
 matplotlib.use('Agg')  # use non-GUI backend for Flask app
 
@@ -27,8 +25,8 @@ aw_all = Read_Apple_Workouts()
 
 
 ############### Frequency bar chart grouped by exercise type and month ###############
-month_count_data = gen_month_freq_df(aw_all, l_7_m)
 def Monthly_Freq_BarChart():
+    month_count_data = gen_month_freq_df(aw_all, l_7_m)
     plot = (ggplot(month_count_data, aes(x='month', y='n', fill='activity')) + 
         geom_bar(stat='identity', position='dodge', color = "Black") +
         
@@ -47,18 +45,13 @@ def Monthly_Freq_BarChart():
         theme_seaborn() +
         theme(figure_size=(10, 5)))
 
-    # Render plot to a matplotlib figure
-    fig = plot.draw()
+    fig = plot.draw() # Render plot to a matplotlib figure
+    buf = io.BytesIO() # Save figure to buffer (RAM)
+    fig.savefig(buf, format='png', bbox_inches='tight') # Instead of writing chart.png to your hard drive, matplotlib writes the PNG bytes into that in-memory "file"
+    plt.close(fig) # Close the figure to free up memory
+    buf.seek(0) # Reinitializing the buffer position
 
-    # Save figure to buffer
-    static_bytes = io.BytesIO()
-    fig.savefig(static_bytes, format='png', bbox_inches='tight')
-    static_bytes.seek(0)
-    static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
-    frequency_plot_url = f"data:image/png;base64,{static_base64}"
-    plt.close(fig)
-
-    return frequency_plot_url 
+    return buf 
 
 
 
@@ -99,49 +92,57 @@ def Weekly_Freq_BarChart():
 
 
 ############### Distance per week grouped by exercise type ###############
-full_miles_week = gen_distance_df(aw_all, l_3_m)
+
 
 def Distance_BarChart():
-        
-    plot = (ggplot(full_miles_week, aes(x='week', y='Total_Miles', fill='activity')) +
-    geom_bar(stat='identity', position='dodge', color = "Black") +
-    geom_text(aes(label='Total_Miles'), position=position_dodge(width=.9), va='bottom') +
+    full_miles_week, y_limit = gen_distance_df(aw_all, l_3_m)
 
-    scale_y_continuous(breaks = range(0, 36, 5),
-                    #minor_breaks=range(0, 36, 2),  # Can't do minor ticks 2.5 because int not float :(
-                    limits = [0, 36]) +
+    plot = (ggplot(full_miles_week, aes(x='week', y='Total_Miles', group='activity')) +
 
-    scale_fill_manual(values={'Running': '#a259d9',   
-        'Cycling': '#ff9800'}) +
+    geom_line(aes(color='activity'), size=2) +
+    geom_point(aes(color='activity'), size=1.5) +
 
-    labs(title= "Cardio Miles per Week",
-        x="",
-        y="Miles",
-        fill = "Activity") +
-    theme_seaborn() +
+    # geom_bar(stat='identity', position='dodge', color = "Black") +
+
+    geom_text(aes(label='Total_Miles'), va='bottom', nudge_y = .35) +  # position=position_dodge(width=.9),
+
+    scale_y_continuous(breaks=range(0, y_limit, 5),
+                       # minor_breaks=range(0, 36, 2),  # Can't do minor ticks 2.5 because int not float :(
+                       limits=[0, y_limit]) +
+
+    scale_color_manual(values={'Running': '#a259d9',
+                               'Cycling': '#ff9800'}) +
+
+    labs(title="Cardio Miles per Week",
+         x="",
+         y="Miles",
+         fill="Activity") +
+    #theme_seaborn() +
+
     theme(figure_size=(10, 5),
-        panel_grid_minor_y = element_line(color = "White", linetype = "dotted")))
+          legend_position=(.5, .95),
+          legend_title=element_blank(),
+          legend_direction='horizontal',
+          legend_text=element_text(color="Black", size=9),
+          legend_background=element_blank(),  # element_rect(fill="#1E2A38", color=None),
+          legend_key=element_blank(),  # Removes boxing/shading around lines in legend
 
-    # Render plot to a matplotlib figure
-    fig = plot.draw()
+          panel_grid_minor_y=element_line(color="White", linetype="solid")))
 
-    # Save figure to buffer
-    static_bytes = io.BytesIO()
-    fig.savefig(static_bytes, format='png', bbox_inches='tight')
-    static_bytes.seek(0)
-    static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
-    distance_plot_url = f"data:image/png;base64,{static_base64}"
-    plt.close(fig)
+    fig = plot.draw() # Render plot to a matplotlib figure
+    buf = io.BytesIO() # Save figure to buffer (RAM)
+    fig.savefig(buf, format='png', bbox_inches='tight') # Instead of writing chart.png to your hard drive, matplotlib writes the PNG bytes into that in-memory "file"
+    plt.close(fig) # Close the figure to free up memory
+    buf.seek(0) # Reinitializing the buffer position
 
-    return distance_plot_url
+    return buf
 
 
 ############### Minutes per week grouped by cardio and weights ###############
-full_mins_cardio, cardio_labels, full_mins_weight, y_max = gen_mins_df(aw_all, l_3_m)
-
 def Minutes_BarChart():
-    plot = (
-        ggplot() +
+    full_mins_cardio, cardio_labels, full_mins_weight, y_max = gen_mins_df(aw_all, l_3_m)
+
+    plot = (ggplot() +
 
         # Cardio stacked bar chart by activity subtypes (nudged to the left)
         geom_bar(
@@ -208,21 +209,72 @@ def Minutes_BarChart():
             plot_title = element_text(color="#E8EFF5", size=13, weight="bold"))
     )
     
-    # Render plot to a matplotlib figure
-    fig = plot.draw()
+    fig = plot.draw() # Render plot to a matplotlib figure
+    buf = io.BytesIO() # Save figure to buffer (RAM)
+    fig.savefig(buf, format='png', bbox_inches='tight') # Instead of writing chart.png to your hard drive, matplotlib writes the PNG bytes into that in-memory "file"
+    plt.close(fig) # Close the figure to free up memory
+    buf.seek(0) # Reinitializing the buffer position
 
-    # Save figure to buffer
-    static_bytes = io.BytesIO()
-    fig.savefig(static_bytes, format='png', bbox_inches='tight')
-    static_bytes.seek(0)
-    static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
-    mins_plot_url = f"data:image/png;base64,{static_base64}"
-    plt.close(fig)
+    return buf
 
-    return mins_plot_url
+
+######## Workout time by week over time ########
+def weekly_workout_time_linegraph():
+    workout_time_df = gen_weekly_workout_time_df(aw_all)
+
+    plot = (ggplot(workout_time_df, aes(x='plot_date', y='Hours', group='Year', color='Year')) +
+            geom_line(size=1.2) +
+            geom_point(color="Black", size=.8) +
+            # geom_text(aes(label='Hours'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment
+
+            geom_hline(yintercept=3, color="#549f74", linetype='dashed', size=1) +  # Cardio goal
+
+            # scale_fill_brewer(type='qual', palette='Set2') +
+            scale_color_manual(values={'2024': "#52be80", '2025': '#ec7063', '2026': "#3414B3"}) +
+
+            scale_x_datetime(date_labels='%b', date_breaks='1 month',
+                             expand=(0, 8, 0, 1)) +  # https://plotnine.org/reference/scale.html
+
+            scale_y_continuous(breaks=range(0, 11),
+                               # Defining breaks of y axis (every number between 0 and 10 within the limit)
+                               limits=[0, 10]) +  # Defining zoom of y axis
+
+            labs(title='Workout Duration by Week and Activity',
+                 x='',
+                 y='Hours',
+                 color='Year') +
+            # theme_matplotlib() +
+            # theme_seaborn() +
+            theme(figure_size=(10, 5),
+                  axis_ticks_length_minor_y=0,  # Turn off minor ticks by setting length to be 0
+                  axis_text_x=element_text(vjust=1),
+
+                  plot_background=element_rect(fill='#1a1a1a'),
+                  panel_background=element_rect(fill='#2d2d2d'),
+                  legend_position='top',
+                  legend_title=element_text(color='white', size=11, weight='bold'),
+                  legend_direction='horizontal',
+                  legend_text=element_text(color='white', size=9),
+                  legend_background=element_blank(),
+                  legend_key=element_blank(),  # Removes boxing/shading around lines in legend
+                  axis_text=element_text(color='white', size=9),
+                  axis_title=element_text(color='white', size=10),  # Axis labels
+                  plot_title=element_text(color='white', size=14, weight='bold'),  # plot title
+                  panel_grid_major=element_line(color='#404040', size=1)
+                  )
+            )
+
+    fig = plot.draw() # Render plot to a matplotlib figure
+    buf = io.BytesIO() # Save figure to buffer (RAM)
+    fig.savefig(buf, format='png', bbox_inches='tight') # Instead of writing chart.png to your hard drive, matplotlib writes the PNG bytes into that in-memory "file"
+    plt.close(fig) # Close the figure to free up memory
+    buf.seek(0) # Reinitializing the buffer position
+
+    return buf
+
 
 ############### Minutes per week for all exercises ############### 
-workout_time = gen_workout_time_df(aw_all, l_3_m)
+"""workout_time = gen_workout_time_df(aw_all, l_3_m)
  
 def Minutes_LineGraph():
     plot = (ggplot(workout_time, aes(x='week', y='Time')) +
@@ -255,13 +307,12 @@ def Minutes_LineGraph():
     total_mins_plot_url = f"data:image/png;base64,{static_base64}"
     plt.close(fig)
 
-    return total_mins_plot_url
+    return total_mins_plot_url"""
 
 
 ############### Step count grouped by month ############### 
-apple_steps = gen_steps_month_df(l_1_y)
-
 def Steps_Boxplot():
+    apple_steps = gen_steps_month_df(l_1_y)
     plot = (
         ggplot(apple_steps, aes(x='month', y='value', fill='month')) +
 
@@ -283,25 +334,20 @@ def Steps_Boxplot():
             legend_position='none',
             panel_grid_minor_y = element_line(color = "White", linetype = "dotted")))
 
-    # Render plot to a matplotlib figure
-    fig = plot.draw()
+    fig = plot.draw() # Render plot to a matplotlib figure
+    buf = io.BytesIO() # Save figure to buffer (RAM)
+    fig.savefig(buf, format='png', bbox_inches='tight') # Instead of writing chart.png to your hard drive, matplotlib writes the PNG bytes into that in-memory "file"
+    plt.close(fig) # Close the figure to free up memory
+    buf.seek(0) # Reinitializing the buffer position
 
-    # Save figure to buffer
-    static_bytes = io.BytesIO()
-    fig.savefig(static_bytes, format='png', bbox_inches='tight')
-    static_bytes.seek(0)
-    static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
-    steps_boxplot_url = f"data:image/png;base64,{static_base64}"
-    plt.close(fig)
-
-    return steps_boxplot_url
+    return buf
 
 
 
 ############### Activity Treemap ############### 
-activity_distribution = gen_activity_treemap_df(aw_all, l_3_m)
-
 def activity_treemap():
+    activity_distribution = gen_activity_treemap_df(aw_all, l_3_m)
+
     # Create treemap
     fig = px.treemap(
         activity_distribution,

@@ -1,169 +1,130 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Tracker</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto; 
-            padding: 20px;
-        }
-        .container {
-            background-color: #f9f9f9;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        select, input[type="text"], input[type="number"], input[type="date"] {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        input[type="range"] {
-            width: 100%;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        #questionForm {
-            margin-top: 20px;
-        }
-        .hidden {
-            display: none;
-        }
-        .conditional-field {
-            margin-top: 10px;
-            padding-left: 15px;
-            border-left: 3px solid #ddd;
-        }
-        /* Navigation styles */
-        .nav-buttons {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-        .nav-button {
-            background-color: #2196F3;
-            color: white;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 14px;
-            margin: 0 5px;
-            text-align: center;
-        }
-        .nav-button:hover {
-            background-color: #0b7dda; 
-        }
-        .tooltip {
+{% extends "base.html" %}
+
+{% block title %}Habit Tracker{% endblock %}
+
+{% block head %}
+<style>
+    .container {
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    h1 {
+        color: #333;
+        text-align: center;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    select, input[type="text"], input[type="number"], input[type="date"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+    input[type="range"] {
+        width: 100%;
+    }
+    button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+    button:hover {
+        background-color: #45a049;
+    }
+    #questionForm {
+        margin-top: 20px;
+    }
+    .hidden {
+        display: none;
+    }
+    .conditional-field {
+        margin-top: 10px;
+        padding-left: 15px;
+        border-left: 3px solid #ddd;
+    }
+    .tooltip {
         position: relative;
         display: inline-block;
         border-bottom: 1px dotted black;
-        }
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 220px;              /* wider for breathing room */
-            background-color: #333;    /* dark but softer */
-            color: #fff;
-            text-align: left;          /* left-align text for readability */
-            border-radius: 6px;
-            padding: 10px;
-            position: absolute;
-            z-index: 1;
-            top: 120%;                 /* show below the label */
-            left: 50%;
-            transform: translateX(-50%); /* center under label */
-            line-height: 1.4;          /* add spacing between lines */
-            font-size: 14px;           /* slightly smaller text */
-            white-space: normal;       /* allow wrapping */
-        }
-
-        /* Add a subtle arrow pointing up */
-        .tooltip .tooltiptext::after {
-            content: "";
-            position: absolute;
-            bottom: 100%;   /* position above tooltip */
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: transparent transparent #333 transparent;
-        }
-
-        .tooltip:hover .tooltiptext {
+    }
+    .tooltip .tooltiptext {
+        visibility: hidden;
+        width: 220px;
+        background-color: #333;
+        color: #fff;
+        text-align: left;
+        border-radius: 6px;
+        padding: 10px;
+        position: absolute;
+        z-index: 1;
+        top: 120%;
+        left: 50%;
+        transform: translateX(-50%);
+        line-height: 1.4;
+        font-size: 14px;
+        white-space: normal;
+    }
+    .tooltip .tooltiptext::after {
+        content: "";
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: transparent transparent #333 transparent;
+    }
+    .tooltip:hover .tooltiptext {
         visibility: visible;
-        }
+    }
+</style>
+{% endblock %}
 
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Daily Habit Tracker</h1>
-        
-        <!-- Navigation buttons -->
-        <div class="nav-buttons">
-            <a href="/" class="nav-button">Home</a>
-            <a href="/exercise_filter" class="nav-button">Exercise Filter</a>
-            <a href="/habit_calendar" class="nav-button">Habit Calendar</a>
-            <a href="/overview_visualizations" class="nav-button">Overview Visuals</a>
-            <a href="/10rm_tracker" class="nav-button">10 RM Workouts</a>
-        </div>
-        
-        <div id="habitSelectGroup" class="form-group">
-            <label for="habitSelect">Select a habit to track:</label>
-            <select id="habitSelect">
-                <option value="">-- Select a habit --</option>
-                {% for habit_id, habit_data in habits.items()|sort %}
-                <option value="{{ habit_id }}">{{ habit_id|capitalize }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        
-        <div id="questionForm" class="hidden">
-            <form id="habitForm">
-                <div id="dynamicQuestions">
-                    <!-- Questions will be added here dynamically -->
-                </div>
-                
-                <button type="submit">Log Habit</button>
-            </form>
-        </div>
-        
-        <div id="confirmation" class="hidden">
-            <h3>Habit logged successfully!</h3>
-            <p>Your data has been received and saved to the database.</p>
-            <p id="confirmationDate"></p>
-            <button id="logAnotherBtn">Log Another Habit</button>
-        </div>
+{% block content %}
+<div class="container">
+    <h1>Daily Habit Tracker</h1>
+
+    <div id="habitSelectGroup" class="form-group">
+        <label for="habitSelect">Select a habit to track:</label>
+        <select id="habitSelect">
+            <option value="">-- Select a habit --</option>
+            {% for habit_id, habit_data in habits.items()|sort %}
+            <option value="{{ habit_id }}">{{ habit_id|capitalize }}</option>
+            {% endfor %}
+        </select>
     </div>
+
+    <div id="questionForm" class="hidden">
+        <form id="habitForm">
+            <div id="dynamicQuestions"></div>
+            <button type="submit">Log Habit</button>
+        </form>
+    </div>
+
+    <div id="confirmation" class="hidden">
+        <h3>Habit logged successfully!</h3>
+        <p>Your data has been received and saved to the database.</p>
+        <p id="confirmationDate"></p>
+        <button id="logAnotherBtn">Log Another Habit</button>
+    </div>
+</div>
+
+
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -413,5 +374,4 @@
             });
         });
     </script>
-</body>
-</html>
+{% endblock %}

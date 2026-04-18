@@ -215,8 +215,36 @@ def gen_distance_df(aw_all, l_3_m):
         on='week_date',
         how='left')
 
+    # Using the max point in the graph to calculate max Y axis to give enough room for horizonal legend
+    y_max = full_miles_week["Total_Miles"].max()
+
+    cushion = 6
+
+    y_limit = round(cushion + y_max)
+
     
-    return full_miles_week
+    return full_miles_week, y_limit
+
+
+######## Workout time by week over time ########
+def gen_weekly_workout_time_df(aw_all):
+    # Gather average weekly time spent working out using last 3 months data
+    workout_time_df = aw_all[(aw_all['metric'] == 'Duration') & (aw_all['week_date'].dt.year >= 2024) ].groupby(['week_date'])['value'].agg(Time='sum', n='count').reset_index()
+
+    workout_time_df["Hours"] = (workout_time_df["Time"]/60).round(2)
+    workout_time_df["Year"] = pd.Categorical(workout_time_df['week_date'].dt.year.astype(str))
+    workout_time_df["Hours"] = (workout_time_df["Time"]/60).round(2)
+    workout_time_df["month_day"] = workout_time_df['week_date'].dt.strftime('%m-%d')  # Extract month-day for alignment
+
+    # Create a reference date in a common year (e.g., 2024) for plotting
+    workout_time_df["plot_date"] = pd.to_datetime('2024-' + workout_time_df["month_day"])
+
+    # Creating normalized datetime for all years
+    # We set every year to 2000 so they align on the x-axis, but keep month/day
+    workout_time_df['norm_date'] = workout_time_df['week_date'].apply(lambda dt: dt.replace(year=2000))
+
+    return workout_time_df
+
 
 
 ############### Workout time grouped by workout type, specified with specific exercise ###############

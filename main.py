@@ -1,10 +1,5 @@
 # Standard Libraries
-import os
-import io
-import json
-import base64
 from datetime import datetime, timedelta
-import pytz
 import calendar
 
 # Flask
@@ -25,7 +20,7 @@ from data_cleaning import load_book_options, load_workout_options, specific_exer
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.io as pio
-from visualization import Monthly_Freq_BarChart, Distance_BarChart, Minutes_BarChart, Minutes_LineGraph, activity_treemap, Steps_Boxplot, l_1_y, l_3_m
+from visualization import activity_treemap, l_1_y, l_3_m
 
 
 app = Flask(__name__)
@@ -225,13 +220,6 @@ def exercise_filter_page():
 ########### visualization page for all apple workouts ###########
 @app.route('/overview_visualizations', methods=['GET', 'POST'])
 def overview_visualization_page():
-    month_frequency_plot_url = Monthly_Freq_BarChart()
-    #week_frequency_plot_url = Weekly_Freq_BarChart()
-    distance_plot_url = Distance_BarChart()
-    mins_plot_url = Minutes_BarChart()
-    #total_mins_plot_url = Minutes_LineGraph()  
-    treemap_plotly_html = activity_treemap()
-    steps_boxplot_url = Steps_Boxplot()
 
     # Bringing in steps df primarily used in visualization section here for KPI analysis
     apple_steps = gen_steps_month_df(l_1_y)
@@ -254,14 +242,9 @@ def overview_visualization_page():
                           #days_per_month_html=days_per_month_html, 
                           #workouts_by_month_html=workouts_by_month_html,
 
-                          # Plots 
-                          month_frequency_plot_url=month_frequency_plot_url,
-                          #week_frequency_plot_url=week_frequency_plot_url,
-                          distance_plot_url=distance_plot_url,
-                          mins_plot_url=mins_plot_url,
-                          #total_mins_plot_url=total_mins_plot_url,
-                          treemap_plotly_html = treemap_plotly_html,
-                          steps_boxplot_url = steps_boxplot_url)
+                          # Interactive plots (non png) 
+                          treemap_plotly_html = activity_treemap())
+
 
 
 ########### 10 RM workouts page ###########
@@ -506,11 +489,14 @@ def habit_calendar_page():
 # Clean shutdown of DB connections
 @app.teardown_appcontext
 def shutdown_session(exception=None):
-    # Add a PRAGMA wal_checkpoint call (or VACUUM if you want compaction) in your teardown so WAL pages are flushed to the main DB file.
-    with engine.connect() as conn:
-        conn.execute(text("PRAGMA wal_checkpoint(FULL);"))
-    engine.dispose()
+    # Remove engine.dispose() entirely — SQLAlchemy manages the pool for you
+    # Only checkpoint WAL, which is fine
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("PRAGMA wal_checkpoint(PASSIVE);"))
+    except Exception:
+        pass  # Don't let teardown errors surface to users
 
 if __name__ == '__main__':
     init_db()  # Initialize sql database when the app starts for the first time (taken from db.py)
-    app.run(debug=False, host="0.0.0.0", port=8501) 
+    app.run(debug=False, host="0.0.0.0", port=8501)
