@@ -1,9 +1,8 @@
 # Standard Libraries
 from datetime import datetime, timedelta
-import calendar
-
+import calendar 
 # Flask
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify
 
 # Local database import
 from db import engine, init_db 
@@ -50,14 +49,6 @@ HABITS = {
             {"id": "comment", "text": "Notes:", "type": "text"}
         ]
     },
-    "dental": {
-        "questions": [
-            {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
-            {"id": "brushed", "text": "Did you brush your teeth?", "type": "checkbox"},
-            {"id": "flossed", "text": "Did you floss?", "type": "checkbox"},
-            {"id": "mouthwash", "text": "Did you use mouthwash?", "type": "checkbox"}
-        ]
-    },
     "reading": {
         "questions": [
             {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
@@ -71,14 +62,6 @@ HABITS = {
             {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
             {"id": "time", "text": "Time of Day:", "type": "select", "required": True, "options": ["Morning", "Evening", "Both"]},
             {"id": "stretch_type", "text": "Stretch:", "type": "select", "required": True, "options": ["Standing Childs Pose", "Wall Slides", "Triceps Stretch", "Seated Assisted External Rotation", "Floor Slides", "Shoulder Rolls" ]},
-            {"id": "comment", "text": "Notes:", "type": "text"}
-        ]
-    },
-    "Acne": {
-        "questions": [
-            {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
-            {"id": "time", "text": "Time of Day:", "type": "select", "required": True, "options": ["Morning", "Evening", "Both"]},
-            {"id": "medication_type", "text": "Medication:", "type": "select", "required": True, "options": ["Benzoyl Peroxide", "Tretinoin", "Cleanser", "Ketoconazole - Face", "Ketoconazole - Arm"]},
             {"id": "comment", "text": "Notes:", "type": "text"}
         ]
     }
@@ -222,7 +205,7 @@ def exercise_filter_page():
 def overview_visualization_page():
 
     # Bringing in steps df primarily used in visualization section here for KPI analysis
-    apple_steps = gen_steps_month_df(l_1_y)
+    apple_steps, step_y_max = gen_steps_month_df(l_1_y)
 
     workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg, steps_L3_mon = get_kpi_stats(apple_steps, l_3_m)
 
@@ -424,11 +407,10 @@ def habit_calendar_page():
 
             elif habit_type == "stretch":
                 stretches = group.loc[group["question"] == "stretch_type", "answer"].values
-                #times     = group.loc[group["question"] == "time",         "answer"].values
+                #times     = group.loc[group["question"] == "time",  "answer"].values
 
                 tooltip = ""
                 for stretch in stretches:
-                    #time = times[i] if i < len(times) else "?"
                     tooltip += f"{stretch}: time\n"
 
             else:
@@ -439,16 +421,19 @@ def habit_calendar_page():
                 "display_name": habit_type.title(),
                 "tooltip":      tooltip,
             })
+
         #habits_logged = mon_habits_df[mon_habits_df["log_date"] == day_date]["habit_type"].unique().tolist()        
         # habits_logged = mon_habits_df.loc[mon_habits_df["log_date"] == day_date, "habit_type"].unique().tolist()
+
         count = len(habits_logged)
 
-        # Calculating Status
+        # Calculating habit completion status for each day
         if is_future:
             status = "future"
         elif count == 0:
             status = "missed"
-        elif count >= 3:
+        # Setting completed status as 2 logged habits because I'm only tracking reading and stretching 
+        elif count >= 2:
             status = "completed"
         else:
             status = "partial"
@@ -459,7 +444,7 @@ def habit_calendar_page():
             "is_future": is_future,
             }
 
-    # Summary stats (past days only)
+    # Calculating summary stats for selected month
     days_completed    = sum(1 for d in calendar_data.values() if d["status"] == "completed")
     days_partial      = sum(1 for d in calendar_data.values() if d["status"] == "partial")
     days_missed       = sum(1 for d in calendar_data.values() if d["status"] == "missed")

@@ -23,27 +23,47 @@ l_1_y = today - relativedelta(years=1)
 # Apple workout data from data_cleaning file
 aw_all = Read_Apple_Workouts()
 
+# Statically defining custom workout theme for all graphs
+workout_theme = theme(
+    figure_size=(10, 5),
+    legend_position=(.5, .95),
+    legend_title=element_text(color="#1E3A52", size=11, weight='bold'),
+    legend_direction='horizontal',
+    legend_text=element_text(color="#3A5A78", size=9),
+    legend_background=element_blank(),
+    legend_key=element_blank(),
+
+    plot_background  = element_rect(fill="#FFFFFF", color=None),
+    panel_background = element_rect(fill="#F4F7FA", color=None),
+    panel_grid_major = element_line(color="#D9E4EE", size=0.5),
+    panel_grid_minor_y = element_line(color="#EBF1F6", linetype="solid"),
+
+    axis_text        = element_text(color="#6B8299", size=9),
+    axis_title       = element_text(color="#3A5A78", size=10),
+    plot_title       = element_text(color="#1E3A52", size=13, weight="bold"),
+)
+
 
 ############### Frequency bar chart grouped by exercise type and month ###############
 def Monthly_Freq_BarChart():
-    month_count_data = gen_month_freq_df(aw_all, l_7_m)
+    month_count_data, session_y_max = gen_month_freq_df(aw_all, l_7_m)
     plot = (ggplot(month_count_data, aes(x='month', y='n', fill='activity')) + 
-        geom_bar(stat='identity', position='dodge', color = "Black") +
-        
-        geom_text(aes(label='n'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment 
-        
-        scale_fill_brewer(type='qual', palette='Set2') +
-        scale_y_continuous(breaks = range(0, 14, 2),
-                        limits = [0, 13]) +
+    geom_bar(stat='identity', position='dodge', color = "Black") +
+    
+    geom_text(aes(label='n'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment 
+    
+    scale_fill_brewer(type='qual', palette='Set2') +
+    scale_y_continuous(breaks = range(0, session_y_max + 1, 2),
+                    limits = [0, session_y_max]) +
 
-        labs(title='Workout Frequency by Month and Activity',
-            x='',
-            y='Sessions',
-            fill='Activity',
-            color='Goal') +
-        #theme_matplotlib() +
-        theme_seaborn() +
-        theme(figure_size=(10, 5)))
+    labs(title='',
+        x='',
+        y='Sessions',
+        fill='') +
+
+    workout_theme 
+        )
+
 
     fig = plot.draw() # Render plot to a matplotlib figure
     buf = io.BytesIO() # Save figure to buffer (RAM)
@@ -97,14 +117,14 @@ def Weekly_Freq_BarChart():
 def Distance_BarChart():
     full_miles_week, y_limit = gen_distance_df(aw_all, l_3_m)
 
-    plot = (ggplot(full_miles_week, aes(x='week', y='Total_Miles', group='activity')) +
+    plot = (ggplot(full_miles_week, aes(x='week', y='Total_Miles', group='activity', color='activity')) +
 
-    geom_line(aes(color='activity'), size=2) +
-    geom_point(aes(color='activity'), size=1.5) +
+    geom_line(size=2) +
+    geom_point(size=1.5) +
 
     # geom_bar(stat='identity', position='dodge', color = "Black") +
 
-    geom_text(aes(label='Total_Miles'), va='bottom', nudge_y = .35) +  # position=position_dodge(width=.9),
+    geom_text(aes(label='Total_Miles'), color = "black", va='bottom', nudge_y = .35) +  # position=position_dodge(width=.9),
 
     scale_y_continuous(breaks=range(0, y_limit, 5),
                        # minor_breaks=range(0, 36, 2),  # Can't do minor ticks 2.5 because int not float :(
@@ -113,21 +133,13 @@ def Distance_BarChart():
     scale_color_manual(values={'Running': '#a259d9',
                                'Cycling': '#ff9800'}) +
 
-    labs(title="Cardio Miles per Week",
+    labs(title="",
          x="",
          y="Miles",
-         fill="Activity") +
-    #theme_seaborn() +
+         color="") +
 
-    theme(figure_size=(10, 5),
-          legend_position=(.5, .95),
-          legend_title=element_blank(),
-          legend_direction='horizontal',
-          legend_text=element_text(color="Black", size=9),
-          legend_background=element_blank(),  # element_rect(fill="#1E2A38", color=None),
-          legend_key=element_blank(),  # Removes boxing/shading around lines in legend
-
-          panel_grid_minor_y=element_line(color="White", linetype="solid")))
+    workout_theme
+        )
 
     fig = plot.draw() # Render plot to a matplotlib figure
     buf = io.BytesIO() # Save figure to buffer (RAM)
@@ -187,27 +199,13 @@ def Minutes_BarChart():
                         date_labels='%b %d',
                      expand=(.01, 0))  +
 
-        labs(title="Minutes per Week by Activity", 
+        labs(title="", 
             x="", 
             y="Minutes", 
             fill="") +
 
-        theme(
-            figure_size=(10, 5),
-            legend_position= (.5, .95),
-            legend_title=element_text(color="#E8EFF5", size=11, weight='bold'),
-            legend_direction='horizontal',
-            legend_text=element_text(color="#A0B4C8", size=9),
-            legend_background= element_blank(), #element_rect(fill="#1E2A38", color=None),
-            legend_key=element_blank(), # Removes boxing/shading around lines in legend
-            #plot_background   = element_rect(fill="#141C26", color=None),
-            #panel_background  = element_rect(fill="#1E2A38", color=None),
-            #panel_grid_major  = element_line(color="#2E3D4F", size=0.5),
-            #panel_grid_minor  = element_line(color="#243040", size=0.3),
-            axis_text = element_text(color="#6B8299", size=9),
-            axis_title = element_text(color="#A0B4C8", size=10),
-            plot_title = element_text(color="#E8EFF5", size=13, weight="bold"))
-    )
+        workout_theme
+            )
     
     fig = plot.draw() # Render plot to a matplotlib figure
     buf = io.BytesIO() # Save figure to buffer (RAM)
@@ -239,30 +237,13 @@ def weekly_workout_time_linegraph():
                                # Defining breaks of y axis (every number between 0 and 10 within the limit)
                                limits=[0, 10]) +  # Defining zoom of y axis
 
-            labs(title='Workout Duration by Week and Activity',
+            labs(title='',
                  x='',
                  y='Hours',
-                 color='Year') +
-            # theme_matplotlib() +
-            # theme_seaborn() +
-            theme(figure_size=(10, 5),
-                  axis_ticks_length_minor_y=0,  # Turn off minor ticks by setting length to be 0
-                  axis_text_x=element_text(vjust=1),
+                 color='') +
 
-                  plot_background=element_rect(fill='#1a1a1a'),
-                  panel_background=element_rect(fill='#2d2d2d'),
-                  legend_position='top',
-                  legend_title=element_text(color='white', size=11, weight='bold'),
-                  legend_direction='horizontal',
-                  legend_text=element_text(color='white', size=9),
-                  legend_background=element_blank(),
-                  legend_key=element_blank(),  # Removes boxing/shading around lines in legend
-                  axis_text=element_text(color='white', size=9),
-                  axis_title=element_text(color='white', size=10),  # Axis labels
-                  plot_title=element_text(color='white', size=14, weight='bold'),  # plot title
-                  panel_grid_major=element_line(color='#404040', size=1)
-                  )
-            )
+            workout_theme
+                )
 
     fig = plot.draw() # Render plot to a matplotlib figure
     buf = io.BytesIO() # Save figure to buffer (RAM)
@@ -312,27 +293,29 @@ def Minutes_LineGraph():
 
 ############### Step count grouped by month ############### 
 def Steps_Boxplot():
-    apple_steps = gen_steps_month_df(l_1_y)
+    apple_steps, step_y_max = gen_steps_month_df(l_1_y)
     plot = (
         ggplot(apple_steps, aes(x='month', y='value', fill='month')) +
 
         geom_boxplot(color="black") +
         stat_summary(fun_data="mean_cl_boot", geom = "point", fill = "white", color = "red") +
 
-        labs(title="Daily Steps Grouped by Month", 
+        geom_hline(yintercept=7500, color="#549f74", linetype='dashed', size=1) + # Step goal
+
+        labs(title="", 
             x="", 
             y="Steps") +
 
-        scale_y_continuous(breaks = range(0, 32500, 5000),
-                        minor_breaks=range(0, 32500, 2500),  # Can't do minor ticks 2.5 because int not float :(
-                        limits = [0, 30000]) +
+        scale_y_continuous(breaks = range(0, step_y_max , 5000),
+                        minor_breaks=range(0, step_y_max , 2500),  # Can't do minor ticks 2.5 because int not float :(
+                        limits = [0, step_y_max]) +
 
-        theme_seaborn() +
+        workout_theme +
 
-        theme(axis_text_x=element_text(),
-            figure_size=(10, 5),
-            legend_position='none',
-            panel_grid_minor_y = element_line(color = "White", linetype = "dotted")))
+        # Overriding legend element to exclude legend  
+        theme(legend_position='none') 
+            )
+
 
     fig = plot.draw() # Render plot to a matplotlib figure
     buf = io.BytesIO() # Save figure to buffer (RAM)

@@ -1,108 +1,73 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!--<meta name="viewport" content="width=device-width, initial-scale=1.0"> I like this page better without this --> 
+    <!-- Link to external CSS file for consistent styling across pages -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* Styling for pandas DataFrame table */
+        .workout-table {
+            border-collapse: collapse;
+            width: 100%;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            margin: 25px 0;
+            font-size: 0.9em;
+        }
+        .workout-table thead th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            text-align: left;
+        }
+        .workout-table tbody tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .workout-table tbody td {
+            border: 1px solid #ddd;
+            padding: 8px 15px;
+        }
+        .workout-table tbody tr:hover {
+            background-color: #e6f7e6;
+        }
+    
+    </style>
+</head>
 
-{% block title %}Exercise Filter{% endblock %}
+<body>
+    <div class="container_narrow">
+        <div class="section">
+            <h1>Exercise Filter</h1>
+                <!-- Navigation buttons -->
+                <div class="nav-buttons">
+                    <a href="/"                         class="nav-button">Home</a>
+                    <a href="/exercise_filter"          class="nav-button">Exercise Filter</a>
+                    <a href="/habit_calendar"           class="nav-button">Habit Calendar</a>
+                    <a href="/overview_visualizations"  class="nav-button">Overview Visuals</a>
+                    <a href="/10rm_tracker"             class="nav-button">10 RM Workouts</a>
+                </div>
 
-{% block head %}
-<style>
-    .container {
-        max-width: 900px;
-        margin: 0 auto;
-    }
+            <h2>Filter by Exercise</h2>
+            <form method="POST" id="exercise-form">
+                <label for="exercise">Exercise:</label>
+                <select name="exercise" id="exercise" onchange="this.form.submit()">
+                    {% for exercise in exercise_options %}
+                        <option value="{{ exercise }}" {% if exercise == selected_exercise %}selected{% endif %}>
+                            {{ exercise }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    
 
-    h1 {
-        color: #2c3e50;
-        text-align: center;
-        margin-bottom: 30px;
-        font-size: 2.2rem;
-    }
+        <div class="section">
+            <h2>Filtered Workout Table</h2>
 
-    .section {
-        background: white;
-        padding: 25px;
-        margin-bottom: 25px;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    }
-
-    .section h2 {
-        margin-top: 0;
-        margin-bottom: 20px;
-        color: #2c3e50;
-        font-size: 1.4rem;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 8px;
-    }
-
-    .section select {
-        padding: 8px 15px;
-        border: 2px solid #ddd;
-        border-radius: 4px;
-        font-size: 16px;
-        cursor: pointer;
-        background-color: white;
-        min-width: 200px;
-    }
-
-    .section select:focus {
-        outline: none;
-        border-color: #3498db;
-    }
-
-    /* ── DataFrame table ── */
-    .workout-table {
-        border-collapse: collapse;
-        width: 100%;
-        font-family: Arial, sans-serif;
-        font-size: 0.9em;
-    }
-
-    .workout-table thead th {
-        background-color: #34495e;
-        color: white;
-        font-weight: bold;
-        border: 1px solid #ddd;
-        padding: 12px 15px;
-        text-align: left;
-    }
-
-    .workout-table tbody tr:nth-child(even) {
-        background-color: #f8f9fa;
-    }
-
-    .workout-table tbody td {
-        border: 1px solid #e9ecef;
-        padding: 8px 15px;
-    }
-
-    .workout-table tbody tr:hover {
-        background-color: #eaf4ff;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="container">
-
-    <h1>Exercise Filter</h1>
-
-    <div class="section">
-        <h2>Filter by Exercise</h2>
-        <form method="POST" id="exercise-form">
-            <label for="exercise">Exercise:</label>
-            <select name="exercise" id="exercise" onchange="this.form.submit()">
-                {% for exercise in exercise_options %}
-                    <option value="{{ exercise }}" {% if exercise == selected_exercise %}selected{% endif %}>
-                        {{ exercise }}
-                    </option>
-                {% endfor %}
-            </select>
-        </form>
+            {{ df_html_table | safe }}
+        </div>
     </div>
-
-    <div class="section">
-        <h2>Filtered Workout Table</h2>
-        {{ df_html_table | safe }}
-    </div>
-
-</div>
-{% endblock %}
+</body>
+</html>

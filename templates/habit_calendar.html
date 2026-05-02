@@ -1,49 +1,11 @@
-{% extends "base.html" %}
-
-{% block title %}Habit Calendar{% endblock %}
-
-{% block head %}
-<style>
-    .container {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-
-    h1 {
-        color: #2c3e50;
-        text-align: center;
-        margin-bottom: 20px;
-        font-size: 2.2rem;
-    }
-
-    /* ── Legend ── */
-    .legend {
-        display: flex;
-        justify-content: center;
-        gap: 24px;
-        margin-bottom: 20px;
-        font-size: 0.85rem;
-        color: #555;
-        flex-wrap: wrap;
-    }
-
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-    }
-
-    .legend-dot {
-        width: 14px;
-        height: 14px;
-        border-radius: 3px;
-        flex-shrink: 0;
-    }
-
-    .legend-dot.green  { background: #27ae60; }
-    .legend-dot.red    { background: #e74c3c; }
-    .legend-dot.gray   { background: #bdc3c7; }
-    .legend-dot.future { background: #f0f0f0; border: 1px solid #ddd; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Link to external CSS file for consistent styling across pages -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
 
     /* ── Month navigation ── */
     .month-nav {
@@ -80,55 +42,13 @@
         text-align: center;
     }
 
-    /* ── Summary bar ── */
-    .summary-bar {
-        display: flex;
-        gap: 16px;
-        justify-content: center;
-        flex-wrap: wrap;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        padding: 18px 24px;
-        margin-bottom: 20px;
-    }
-
-    .summary-stat {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .summary-stat .stat-value {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #2c3e50;
-    }
-
-    .summary-stat .stat-label {
-        font-size: 0.75rem;
-        color: #888;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-
-    .summary-divider {
-        width: 1px;
-        background: #e9ecef;
-        align-self: stretch;
-    }
-
-    .stat-green  { color: #27ae60 !important; }
-    .stat-red    { color: #e74c3c !important; }
-    .stat-orange { color: #f39c12 !important; }
 
     /* ── Calendar wrapper ── */
     .calendar-wrapper {
         background: white;
         border-radius: 8px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        overflow: visible;
+        overflow: clip; /* changed from hidden so tooltips aren't clipped */
     }
 
     /* ── Day-of-week header row ── */
@@ -137,7 +57,6 @@
         grid-template-columns: repeat(7, 1fr);
         background: #34495e;
         color: white;
-        border-radius: 8px 8px 0 0;
     }
 
     .calendar-header-cell {
@@ -149,6 +68,7 @@
         text-transform: uppercase;
     }
 
+    
     /* ── Calendar grid ── */
     .calendar-grid {
         display: grid;
@@ -167,12 +87,35 @@
 
     .day-cell:nth-child(7n) { border-right: none; }
 
-    .day-cell.empty     { background: #fafafa; }
-    .day-cell.future    { background: #fcfcfc; }
-    .day-cell.today     { background: #eaf4ff; }
-    .day-cell.completed { background: #eafaf1; }
-    .day-cell.missed    { background: #fdf0ee; }
-    .day-cell.partial   { background: #fffbea; }
+    /* ── Empty cells (before month starts) ── */
+    .day-cell.empty {
+        background: #fafafa;
+    }
+
+    /* ── Future days ── */
+    .day-cell.future {
+        background: #fcfcfc;
+    } 
+
+    /* ── Today ── */
+    .day-cell.today {
+        background: #eaf4ff;
+    }
+
+    /* ── Completed days (all habits done) ── */
+    .day-cell.completed {
+        background: #eafaf1;
+    }
+
+    /* ── Missed days (no habits) ── */
+    .day-cell.missed {
+        background: #fdf0ee;
+    }
+
+    /* ── Partial days (some habits) ── */
+    .day-cell.partial {
+        background: #fffbea;
+    }
 
     /* ── Day number ── */
     .day-number {
@@ -195,12 +138,16 @@
     }
 
     .day-cell.empty .day-number,
-    .day-cell.future .day-number { color: #bbb; }
+    .day-cell.future .day-number {
+        color: #bbb;
+    }
 
-    /* ── Status stripe ── */
+    /* ── Status stripe (colored bar across top of cell) ── */
     .day-stripe {
         position: absolute;
-        top: 0; left: 0; right: 0;
+        top: 0;
+        left: 0;
+        right: 0;
         height: 4px;
     }
 
@@ -208,17 +155,16 @@
     .day-cell.missed    .day-stripe { background: #e74c3c; }
     .day-cell.partial   .day-stripe { background: #f39c12; }
 
-    /* ── Habit pill tags ── */
+    /* ── Habit pill tags inside a day ── */
     .habit-tags {
         display: flex;
         flex-direction: column;
         gap: 4px;
-        margin-top: 6px;
+        margin-top: 4px;
         overflow: visible;
     }
 
     .habit-tag {
-        position: relative;
         font-size: 0.75rem;
         padding: 3px 8px;
         border-radius: 4px;
@@ -229,14 +175,11 @@
         width: 100%;
     }
 
-    .habit-tag.workout { background: #27ae60; color: white; }
-    .habit-tag.reading { background: #2980b9; color: white; }
-    .habit-tag.dental  { background: #e74c3c; color: white; }
-    .habit-tag.stretch { background: #f39c12; color: white; }
-    .habit-tag.acne    { background: #8e44ad; color: white; }
-    .habit-tag.default { background: #7f8c8d; color: white; }
-
     /* ── Habit pill tooltip ── */
+    .habit-tag {
+        position: relative;
+    }
+
     .habit-tooltip {
         visibility: hidden;
         opacity: 0;
@@ -257,16 +200,31 @@
         transition: opacity 0.15s;
     }
 
+    /* Arrow pointing down */
     .habit-tooltip::after {
         content: '';
         position: absolute;
-        top: 100%; left: 50%;
+        top: 100%;
+        left: 50%;
         transform: translateX(-50%);
         border: 5px solid transparent;
         border-top-color: #2c3e50;
     }
 
-    .habit-tag:hover .habit-tooltip,
+    .habit-tag:hover .habit-tooltip {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    /* Per-habit colors */
+    .habit-tag.workout  { background: #27ae60; color: white; }
+    .habit-tag.reading  { background: #2980b9; color: white; }
+    .habit-tag.dental   { background: #e74c3c; color: white; }
+    .habit-tag.stretch  { background: #f39c12; color: white; }
+    .habit-tag.acne     { background: #8e44ad; color: white; }
+    .habit-tag.default  { background: #7f8c8d; color: white; }
+
+    /* Touch tap support — JS adds/removes this class */
     .habit-tag.tooltip-active .habit-tooltip {
         visibility: visible;
         opacity: 1;
@@ -274,64 +232,92 @@
 
     /* ── Responsive ── */
     @media (max-width: 700px) {
-        .calendar-grid  { grid-auto-rows: minmax(80px, 1fr); }
-        .habit-tag      { font-size: 0.65rem; padding: 2px 5px; }
-        .summary-bar    { gap: 10px; padding: 14px 16px; }
-        .legend         { gap: 12px; }
+
+        .calendar-header,
+        .calendar-grid {
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
+
+        .calendar-grid {
+            grid-auto-rows: minmax(70px, 1fr);
+        }
+
+        .calendar-header-cell {
+            font-size: 0.6rem;
+            padding: 8px 2px;
+            letter-spacing: 0;
+        }
+
+        .habit-tag {
+            font-size: 0.5rem;
+            padding: 2px 3px;
+            white-space: normal;
+            overflow: visible; /* must be visible so tooltip isn't clipped */
+            text-overflow: ellipsis;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .day-number {
+            font-size: 0.7rem;
+            width: 20px;
+            height: 20px;
+        }
+
+        .day-cell {
+            padding: 4px 3px;
+        }
     }
-</style>
-{% endblock %}
+    </style>
+</head>
 
-{% block content %}
-<div class="container">
+<body>
+<div class="container_wide">
+    <div class="section">
+        <h1>Habit Calendar</h1>
+            <!-- Navigation buttons -->
+            <div class="nav-buttons">
+                <a href="/"                         class="nav-button">Home</a>
+                <a href="/exercise_filter"          class="nav-button">Exercise Filter</a>
+                <a href="/habit_calendar"           class="nav-button">Habit Calendar</a>
+                <a href="/overview_visualizations"  class="nav-button">Overview Visuals</a>
+                <a href="/10rm_tracker"             class="nav-button">10 RM Workouts</a>
+            </div>
 
-    <h1>Habit Calendar</h1>
-
-    <!-- Legend -->
-    <div class="legend">
-        <div class="legend-item"><div class="legend-dot green"></div> All habits logged</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#f39c12;border-radius:3px;"></div> Some habits logged</div>
-        <div class="legend-item"><div class="legend-dot red"></div> No habits logged</div>
-        <div class="legend-item"><div class="legend-dot gray"></div> No data yet</div>
+<!-- KPI Metrics Section -->
+        <h2>Habit KPIs</h2>
+            <div class="kpi-section">
+                <div class="kpi-card">
+                    <div class="kpi-title">All Habits Completed</div>
+                    <div class="kpi-value">{{ days_completed }}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title"> Partial Habits</div>
+                    <div class="kpi-value">{{ days_partial }}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Days Missed</div>
+                    <div class="kpi-value">{{ days_missed }}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Habits Logged</div>
+                    <div class="kpi-value">{{ total_habits_logged }} </div>
+                </div>
+            </div>
     </div>
+    
 
-    <!-- Monthly summary stats -->
-    <div class="summary-bar">
-        <div class="summary-stat">
-            <span class="stat-value">{{ month_name }} {{ year }}</span>
-            <span class="stat-label">Month</span>
-        </div>
-        <div class="summary-divider"></div>
-        <div class="summary-stat">
-            <span class="stat-value stat-green">{{ days_completed }}</span>
-            <span class="stat-label">Days — all habits</span>
-        </div>
-        <div class="summary-divider"></div>
-        <div class="summary-stat">
-            <span class="stat-value stat-orange">{{ days_partial }}</span>
-            <span class="stat-label">Days — some habits</span>
-        </div>
-        <div class="summary-divider"></div>
-        <div class="summary-stat">
-            <span class="stat-value stat-red">{{ days_missed }}</span>
-            <span class="stat-label">Days — no habits</span>
-        </div>
-        <div class="summary-divider"></div>
-        <div class="summary-stat">
-            <span class="stat-value">{{ total_habits_logged }}</span>
-            <span class="stat-label">Total habit logs</span>
-        </div>
-    </div>
 
-    <!-- Month navigation -->
+
+    <!-- Month navigation + calendar -->
     <div class="month-nav">
         <a href="/habit_calendar?year={{ prev_year }}&month={{ prev_month }}" class="month-nav-btn">&#8249;</a>
         <div class="month-title">{{ month_name }} {{ year }}</div>
         <a href="/habit_calendar?year={{ next_year }}&month={{ next_month }}" class="month-nav-btn">&#8250;</a>
     </div>
 
-    <!-- Calendar -->
     <div class="calendar-wrapper">
+        <!-- Day-of-week header set statically -->
         <div class="calendar-header">
             <div class="calendar-header-cell">Mon</div>
             <div class="calendar-header-cell">Tue</div>
@@ -342,19 +328,24 @@
             <div class="calendar-header-cell">Sun</div>
         </div>
 
+        <!-- Day cells -->
         <div class="calendar-grid">
 
+            {# Leading empty cells so day 1 falls on the right weekday #}
             {% for _ in range(first_weekday) %}
                 <div class="day-cell empty"></div>
             {% endfor %}
 
+            {# Actual day cells #}
             {% for day in range(1, days_in_month + 1) %}
-                {% set day_data     = calendar_data.get(day, {}) %}
+                {% set day_data = calendar_data.get(day, {}) %}
                 {% set habits_logged = day_data.get('habits', []) %}
-                {% set is_today     = (day == today_day and year == today_year and month == today_month) %}
-                {% set is_future    = day_data.get('is_future', false) %}
-                {% set status       = day_data.get('status', 'no_data') %}
+                {% set habit_count   = habits_logged | length %}
+                {% set is_today      = (day == today_day and year == today_year and month == today_month) %}
+                {% set is_future     = day_data.get('is_future', false) %}
+                {% set status        = day_data.get('status', 'no_data') %}
 
+                {# Build CSS classes for the cell #}
                 {% set cell_class = 'day-cell' %}
                 {% if is_today %}
                     {% set cell_class = cell_class + ' today' %}
@@ -382,6 +373,7 @@
                 </div>
             {% endfor %}
 
+            {# Trailing empty cells to complete the last row #}
             {% set total_cells = first_weekday + days_in_month %}
             {% set remainder   = total_cells % 7 %}
             {% if remainder != 0 %}
@@ -390,12 +382,42 @@
                 {% endfor %}
             {% endif %}
 
-        </div>
-    </div>
+        </div><!-- /calendar-grid -->
+    </div><!-- /calendar-wrapper -->
 
-</div>
+</div><!-- /container -->
 
 <script>
-    // your existing script block unchanged
+    document.querySelectorAll('.habit-tag').forEach(function(tag) {
+        tag.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // stops the browser from also firing a click
+
+            // If this tooltip is already open, just close it and stop
+            if (tag.classList.contains('tooltip-active')) {
+                tag.classList.remove('tooltip-active');
+                return;
+            }
+
+            // Close any other open tooltips first
+            document.querySelectorAll('.habit-tag.tooltip-active').forEach(function(other) {
+                other.classList.remove('tooltip-active');
+            });
+
+            // Open this one
+            tag.classList.add('tooltip-active');
+        });
+    });
+
+    // Tap anywhere else on the page to dismiss
+    document.addEventListener('touchstart', function(e) {
+        if (!e.target.closest('.habit-tag')) {
+            document.querySelectorAll('.habit-tag.tooltip-active').forEach(function(tag) {
+                tag.classList.remove('tooltip-active');
+            });
+        }
+    });
 </script>
-{% endblock %}
+
+</body>
+
+</html>

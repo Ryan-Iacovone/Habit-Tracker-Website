@@ -1,183 +1,144 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!--<meta name="viewport" content="width=device-width, initial-scale=1.0"> TBD if I like this here -->
+    <!-- Link to external CSS file for consistent styling across pages -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
 
-{% block title %}Training Dashboard{% endblock %}
+        .section h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+        }
+            
+        /* Chart Grid Layout */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 25px;
+        }
+        
+        .plot-box {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
 
-{% block head %}
-<style>
-    .container {
-        max-width: 1400px;
-        margin: 0 auto;
-    }
+        /* Spefcfying a head for a specific plot box */
+        .plot-box h3 {
+            background: #34495e;
+            color: white;
+            margin: 0;
+            padding: 18px 25px;
+            font-size: 1.2rem;
+        }
+        
+        .plot-box img {
+            width: 100%;
+            display: block;
+        }
 
-    h1 {
-        color: #2c3e50;
-        text-align: center;
-        margin-bottom: 30px;
-        font-size: 2.2rem;
-    }
+        .plot-description {
+            padding: 18px 25px;
+            font-size: 0.95rem;
+            color: #666;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
 
-    /* Improved Section Styling */
-    .section {
-        background: white;
-        padding: 25px;
-        margin-bottom: 25px;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    }
+        /* Responsive adjustments for smaller phone screens */
+        @media (max-width: 768px) {
+            .kpi-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+<head>
 
-    .section h2 {
-        margin-top: 0;
-        margin-bottom: 20px;
-        color: #2c3e50;
-        font-size: 1.4rem;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 8px;
-    }
+<body>
+    <div class="container_wide">
+        <h1>Triathlon Training Dashboard</h1>
 
-    /* KPI Cards */
-    .kpi-section {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 20px;
-    }
-
-    .kpi-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 20px;
-        text-align: center;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .kpi-card:nth-child(2) {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    }
-    .kpi-card:nth-child(3) {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    }
-    .kpi-card:nth-child(4) {
-        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    }
-    .kpi-card:nth-child(5) {
-        background: linear-gradient(135deg, #e96a79 0%, #44584a 100%);
-    }
-
-    .kpi-title {
-        font-size: 0.9rem;
-        margin-bottom: 8px;
-        opacity: 0.9;
-    }
-
-    .kpi-value {
-        font-size: 2rem;
-        font-weight: bold;
-    }
-
-    /* Chart Grid */
-    .chart-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-        gap: 25px;
-    }
-
-    .plot-box {
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .plot-box h3 {
-        background: #34495e;
-        color: white;
-        margin: 0;
-        padding: 18px 25px;
-        font-size: 1.2rem;
-    }
-
-    .plot-box img {
-        width: 100%;
-        display: block;
-    }
-
-    .plot-description {
-        padding: 18px 25px;
-        font-size: 0.95rem;
-        color: #666;
-        background: #f8f9fa;
-        border-top: 1px solid #e9ecef;
-    }
-
-    @media (max-width: 768px) {
-        .kpi-section { grid-template-columns: 1fr; }
-        .chart-grid  { grid-template-columns: 1fr; }
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="container">
-    <h1>Triathlon Training Dashboard</h1>
-
-    <!-- KPI Metrics Section -->
-    <div class="section">
-        <h2>Performance Metrics</h2>
-        <div class="kpi-section">
-            <div class="kpi-card">
-                <div class="kpi-title">Total Workouts YTD</div>
-                <div class="kpi-value">{{ ytd_count }}</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">{{ current_month_name }} MTD Workouts</div>
-                <div class="kpi-value">{{ mtd_count }}</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">{{ last_month_name }} Total Workouts</div>
-                <div class="kpi-value">{{ mtd_count_LM }}</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">Avg Weekly Workout Time (L3M)</div>
-                <div class="kpi-value">{{ workout_time_avg }} <span style="font-size: 1rem;">Hours</span></div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-title">Avg Daily Steps (L3M)</div>
-                <div class="kpi-value">{{ steps_L3_mon }}</div>
-            </div>
+        <!-- Navigation buttons -->
+        <div class="nav-buttons">
+            <a href="/"                         class="nav-button">Home</a>
+            <a href="/exercise_filter"          class="nav-button">Exercise Filter</a>
+            <a href="/habit_calendar"           class="nav-button">Habit Calendar</a>
+            <a href="/overview_visualizations"  class="nav-button">Overview Visuals</a>
+            <a href="/10rm_tracker"             class="nav-button">10 RM Workouts</a>
         </div>
-    </div>
 
-    <!-- Main Visualization Section -->
-    <div class="section">
-        <h2>Workout Analytics</h2>
-        <div class="chart-grid">
-            <div class="plot-box">
-                <h3>Fitness Overview</h3>
-                <img src="/static/charts/minutes.png" alt="Minutes Plot">
-            </div>
-            <div class="plot-box">
-                <h3>Monthly Workout Frequency</h3>
-                <div class="plot-description">
-                    Ensuring I have a balanced exercise routine hitting 150 minutes of moderate cardio and 2 weight workouts a week
+        <!-- KPI Metrics Section -->
+        <div class="section">
+            <h2>Performance Metrics</h2>
+            <div class="kpi-section">
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Workouts YTD</div>
+                    <div class="kpi-value">{{ ytd_count }}</div>
                 </div>
-                <img src="/static/charts/monthly_frequency.png" alt="Frequency Plot">
+                <div class="kpi-card">
+                    <div class="kpi-title">{{ current_month_name }} MTD Workouts</div>
+                    <div class="kpi-value">{{ mtd_count }}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">{{ last_month_name }} Total Workouts</div>
+                    <div class="kpi-value">{{ mtd_count_LM }}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Avg Weekly Workout Time (L3M)</div>
+                    <div class="kpi-value">{{ workout_time_avg }} <span style="font-size: 1rem;">Hours</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Avg Daily Steps (L3M)</div>
+                    <div class="kpi-value">{{ steps_L3_mon }}</div>
+                </div>
             </div>
-            <div class="plot-box">
-                <h3>Distance Per Exercise</h3>
-                <img src="/static/charts/distance.png" alt="Distance Plot">
-            </div>
-            <div class="plot-box">
-                <h3>Weekly Workout Frequency</h3>
-                <img src="/static/charts/weekly.png" alt="Weekly Plot">
-            </div>
-            <div class="plot-box">
-                <h3>Training Balance by Discipline</h3>
-                {{ treemap_plotly_html | safe }}
-            </div>
-            <div class="plot-box">
-                <h3>Step Count</h3>
-                <img src="/static/charts/steps.png" alt="Step Count Plot">
+        </div>
+
+        <!-- Main Visualization Section -->
+        <div class="section">
+            <h2>Workout Analytics</h2>
+            <div class="chart-grid">
+                <div class="plot-box">
+                    <h3>Fitness Overview</h3>
+                    <img src="/static/charts/minutes.png" alt="Minutes Plot">
+                </div>
+                <div class="plot-box">
+                    <h3>Monthly Workout Frequency</h3>
+                    <!-- Commenting out description, but leaving it in case I want to put it back in -->
+                    <!--<div class="plot-description">
+                        Ensuring I have a balanced exercise routine hitting 150 minutes of moderate cardio and 2 weight workouts a week
+                    </div> -->
+                    <img src="/static/charts/monthly_frequency.png" alt="Frequency Plot">
+                </div>
+                <div class="plot-box">
+                    <h3>Cardio Miles per Week</h3>
+                    <img src="/static/charts/distance.png" alt="Distance Plot">
+                </div>
+                <div class="plot-box">
+                    <h3>Weekly Workout Duration</h3>
+                    <img src="/static/charts/weekly.png" alt="Weekly Plot">
+                </div>
+                <div class="plot-box">
+                    <h3>Training Balance by Discipline</h3>
+                    {{ treemap_plotly_html | safe }}
+                </div>
+                <div class="plot-box">
+                    <h3>Monthly Step Count</h3>
+                    <img src="/static/charts/steps.png" alt="Step Count Plot">
+                </div>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
+</body>
+<html>

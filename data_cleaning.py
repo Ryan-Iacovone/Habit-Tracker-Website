@@ -157,7 +157,11 @@ def gen_month_freq_df(aw_all, l_7_m):
         on='month_date',
         how='left')
 
-    return month_count_data
+    freq_cush = 2
+
+    session_y_max = int(month_count_data["n"].max() + freq_cush)
+
+    return month_count_data, session_y_max
 
 
 
@@ -363,7 +367,12 @@ def gen_steps_month_df(l_1_y):
     month_order = apple_steps.sort_values('month_date')['month'].unique()
     apple_steps['month'] = pd.Categorical(apple_steps['month'], categories=month_order, ordered=True)
 
-    return apple_steps
+    # Dynamically calculating y axis max with some cushion room for labels
+    step_cush = 2000
+
+    step_y_max = int(apple_steps["value"].max() + step_cush)
+
+    return apple_steps, step_y_max
 
 
 
