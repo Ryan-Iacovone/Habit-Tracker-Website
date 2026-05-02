@@ -26,10 +26,10 @@ aw_all = Read_Apple_Workouts()
 # Statically defining custom workout theme for all graphs
 workout_theme = theme(
     figure_size=(10, 5),
-    legend_position=(.5, .95),
-    legend_title=element_text(color="#1E3A52", size=11, weight='bold'),
+    legend_position=(.5, .96),
+    #legend_title=element_text(color="#1E3A52", size=11, weight='bold'),
     legend_direction='horizontal',
-    legend_text=element_text(color="#3A5A78", size=9),
+    legend_text=element_text(color="#3A5A78", size=11),
     legend_background=element_blank(),
     legend_key=element_blank(),
 
@@ -40,7 +40,7 @@ workout_theme = theme(
 
     axis_text        = element_text(color="#6B8299", size=9),
     axis_title       = element_text(color="#3A5A78", size=10),
-    plot_title       = element_text(color="#1E3A52", size=13, weight="bold"),
+    #plot_title       = element_text(color="#1E3A52", size=13, weight="bold"),
 )
 
 
@@ -52,7 +52,13 @@ def Monthly_Freq_BarChart():
     
     geom_text(aes(label='n'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment 
     
-    scale_fill_brewer(type='qual', palette='Set2') +
+    scale_fill_manual(values= {"Swimming": "#00C9D4",
+                                "Cycling":  "#FF6B2B",
+                                "Running":  "#9B8EC4", 
+                                "Walking":  "#E63946",
+                                "Weights":  "#7EBC1A"} ) +
+
+
     scale_y_continuous(breaks = range(0, session_y_max + 1, 2),
                     limits = [0, session_y_max]) +
 
@@ -130,8 +136,8 @@ def Distance_BarChart():
                        # minor_breaks=range(0, 36, 2),  # Can't do minor ticks 2.5 because int not float :(
                        limits=[0, y_limit]) +
 
-    scale_color_manual(values={'Running': '#a259d9',
-                               'Cycling': '#ff9800'}) +
+    scale_color_manual(values={'Running': '#9B8EC4',
+                               'Cycling': '#FF6B2B'}) +
 
     labs(title="",
          x="",
@@ -183,8 +189,8 @@ def Minutes_BarChart():
         # 
         scale_fill_manual(values= {"Swimming": "#00C9D4",
                                 "Cycling":  "#FF6B2B",
-                                "Running":  "#E63946",
-                                "Walking":  "#9B8EC4",
+                                "Running":  "#9B8EC4", 
+                                "Walking":  "#E63946",
                                 "TraditionalStrengthTraining":  "#7EBC1A"},
                                 labels={"TraditionalStrengthTraining": "Weights"}) +
 
@@ -218,7 +224,7 @@ def Minutes_BarChart():
 
 ######## Workout time by week over time ########
 def weekly_workout_time_linegraph():
-    workout_time_df = gen_weekly_workout_time_df(aw_all)
+    workout_time_df, y_limit = gen_weekly_workout_time_df(aw_all)
 
     plot = (ggplot(workout_time_df, aes(x='plot_date', y='Hours', group='Year', color='Year')) +
             geom_line(size=1.2) +
@@ -233,9 +239,9 @@ def weekly_workout_time_linegraph():
             scale_x_datetime(date_labels='%b', date_breaks='1 month',
                              expand=(0, 8, 0, 1)) +  # https://plotnine.org/reference/scale.html
 
-            scale_y_continuous(breaks=range(0, 11),
+            scale_y_continuous(breaks=range(0, y_limit + 1),
                                # Defining breaks of y axis (every number between 0 and 10 within the limit)
-                               limits=[0, 10]) +  # Defining zoom of y axis
+                               limits=[0, y_limit]) +  # Defining zoom of y axis
 
             labs(title='',
                  x='',

@@ -247,7 +247,11 @@ def gen_weekly_workout_time_df(aw_all):
     # We set every year to 2000 so they align on the x-axis, but keep month/day
     workout_time_df['norm_date'] = workout_time_df['week_date'].apply(lambda dt: dt.replace(year=2000))
 
-    return workout_time_df
+    # Dynamically calculating y axis max with some cushion room for labels
+    y_cush = 1
+    y_limit = round(y_cush + workout_time_df['Hours'].max())
+
+    return workout_time_df, y_limit
 
 
 
