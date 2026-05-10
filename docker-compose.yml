@@ -16,7 +16,6 @@ services:
       - "8501:8501"        # Nginx is now the only thing exposed to the outside world
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf  # Mount your config in
-      - ./static/charts:/app/static/charts
     depends_on:
       - habit-website  # Don't start Nginx until Flask is up
     restart: unless-stopped

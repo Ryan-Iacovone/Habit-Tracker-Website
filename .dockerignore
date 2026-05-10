@@ -25,11 +25,13 @@ __pycache__
 *.pyo
 *.pyd
 .pytest_cache
+/__pycache__
 
 # Local dev files
 .env
 *.log
 .idea/
+CLAUDE.md
 
 # Docker files themselves
 Dockerfile

@@ -35,11 +35,11 @@ workout_theme = theme(
 
     plot_background  = element_rect(fill="#FFFFFF", color=None),
     panel_background = element_rect(fill="#F4F7FA", color=None),
-    panel_grid_major = element_line(color="#D9E4EE", size=0.5),
-    panel_grid_minor_y = element_line(color="#EBF1F6", linetype="solid"),
+    panel_grid_major = element_line(color="#CDDDED", size=0.5),
+    panel_grid_minor_y = element_line(color="#CDDDED", linetype="solid"),
 
-    axis_text        = element_text(color="#6B8299", size=9),
-    axis_title       = element_text(color="#3A5A78", size=10),
+    axis_text        = element_text(color="#6B8299", size=10), # X & Y axis labels
+    axis_title       = element_text(color="#3A5A78", size=13), # y axis title/label
     #plot_title       = element_text(color="#1E3A52", size=13, weight="bold"),
 )
 
@@ -52,11 +52,11 @@ def Monthly_Freq_BarChart():
     
     geom_text(aes(label='n'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment 
     
-    scale_fill_manual(values= {"Swimming": "#00C9D4",
+    scale_fill_manual(values= {"Swimming": "#3A8FD4",
                                 "Cycling":  "#FF6B2B",
-                                "Running":  "#9B8EC4", 
+                                "Running":  "#7B5EA7", 
                                 "Walking":  "#E63946",
-                                "Weights":  "#7EBC1A"} ) +
+                                "Weights":  "#2EAF6E"} ) +
 
 
     scale_y_continuous(breaks = range(0, session_y_max + 1, 2),
@@ -126,7 +126,7 @@ def Distance_BarChart():
     plot = (ggplot(full_miles_week, aes(x='week', y='Total_Miles', group='activity', color='activity')) +
 
     geom_line(size=2) +
-    geom_point(size=1.5) +
+    geom_point(size=2) +
 
     # geom_bar(stat='identity', position='dodge', color = "Black") +
 
@@ -136,7 +136,7 @@ def Distance_BarChart():
                        # minor_breaks=range(0, 36, 2),  # Can't do minor ticks 2.5 because int not float :(
                        limits=[0, y_limit]) +
 
-    scale_color_manual(values={'Running': '#9B8EC4',
+    scale_color_manual(values={'Running': '#7B5EA7',
                                'Cycling': '#FF6B2B'}) +
 
     labs(title="",
@@ -166,7 +166,7 @@ def Minutes_BarChart():
         geom_bar(
             data=full_mins_cardio,
             mapping=aes(x='x_nudged', y='Total_min', fill='activity'),
-            stat='identity', position='stack', width=2, color='#b36a62', size=0.7 ) +
+            stat='identity', position='stack', width=2, color="#45484B", size=0.7 ) +
 
         # Cardio Labels: minutes for each cardio subtype
         geom_text(
@@ -179,7 +179,7 @@ def Minutes_BarChart():
         geom_bar(
             data=full_mins_weight,
             mapping=aes(x='x_nudged', y='Total_min', fill='activity'),
-            stat='identity', position='stack', width=2, color='#549f74', size=0.7 ) +
+            stat='identity', position='stack', width=2, color='#45484B', size=0.7 ) +
 
         # Weight labels: count of weight exercises per week
         geom_text(data = full_mins_weight,
@@ -187,11 +187,11 @@ def Minutes_BarChart():
                 va='bottom', color = "black", size = 10) +
 
         # 
-        scale_fill_manual(values= {"Swimming": "#00C9D4",
+        scale_fill_manual(values= {"Swimming": "#3A8FD4",
                                 "Cycling":  "#FF6B2B",
-                                "Running":  "#9B8EC4", 
+                                "Running":  "#7B5EA7", 
                                 "Walking":  "#E63946",
-                                "TraditionalStrengthTraining":  "#7EBC1A"},
+                                "TraditionalStrengthTraining":  "#2EAF6E"},
                                 labels={"TraditionalStrengthTraining": "Weights"}) +
 
         # Setting goal lines for cardio and weight exercises per week
@@ -227,14 +227,15 @@ def weekly_workout_time_linegraph():
     workout_time_df, y_limit = gen_weekly_workout_time_df(aw_all)
 
     plot = (ggplot(workout_time_df, aes(x='plot_date', y='Hours', group='Year', color='Year')) +
-            geom_line(size=1.2) +
+            geom_line(size=1.4) +
             geom_point(color="Black", size=.8) +
             # geom_text(aes(label='Hours'), position=position_dodge(width=0.9), va='bottom') + # va & ha are used for veritcal and horizontal allignment
 
             geom_hline(yintercept=3, color="#549f74", linetype='dashed', size=1) +  # Cardio goal
+            
+            scale_color_manual(values={"2024": "#B8D2ED", "2025": "#4A90C4", "2026": "#0A2E4D"} ) +
 
-            # scale_fill_brewer(type='qual', palette='Set2') +
-            scale_color_manual(values={'2024': "#52be80", '2025': '#ec7063', '2026': "#3414B3"}) +
+                                    # '2024': "#52be80", '2025': '#ec7063', '2026': "#3414B3"}) +
 
             scale_x_datetime(date_labels='%b', date_breaks='1 month',
                              expand=(0, 8, 0, 1)) +  # https://plotnine.org/reference/scale.html
