@@ -5,7 +5,6 @@ services:
     build: .
     volumes:
       - ./habits.db:/app/habits.db
-      - ./static/charts:/app/static/charts
     command: uv run gunicorn -w 2 -b 0.0.0.0:8501 main:app
     restart: unless-stopped
     # No ports exposed here anymore — Nginx is the only public entry point
@@ -16,6 +15,7 @@ services:
       - "8501:8501"        # Nginx is now the only thing exposed to the outside world
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf  # Mount your config in
+      - ./static/charts:/app/static/charts
     depends_on:
       - habit-website  # Don't start Nginx until Flask is up
     restart: unless-stopped

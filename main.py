@@ -1,6 +1,7 @@
 # Standard Libraries
 from datetime import datetime, timedelta
 import calendar 
+import time
 # Flask
 from flask import Flask, render_template, request, jsonify
 
@@ -205,6 +206,7 @@ def exercise_filter_page():
 def overview_visualization_page():
 
     # Bringing in steps df primarily used in visualization section here for KPI analysis
+    # Need to still return step_y_max here although I only use apple steps in the following steps (step_y_max is for graph)  
     apple_steps, step_y_max = gen_steps_month_df(l_1_y)
 
     workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg, steps_L3_mon = get_kpi_stats(apple_steps, l_3_m)
