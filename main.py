@@ -13,14 +13,12 @@ import pandas as pd
 import numpy as np
 from zoneinfo import ZoneInfo
 from sqlalchemy import text, MetaData, Table, Column, Integer, String, Text, Date, DateTime, func, insert
-from data_cleaning import load_book_options, load_workout_options, specific_exercise_filter, \
-    gen_steps_month_df, get_kpi_stats # only a df with options for a dropdown
+from data_cleaning import load_book_options, load_workout_options, specific_exercise_filter
 
 # Visualizations
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.io as pio
-from visualization import activity_treemap, l_1_y, l_3_m
 
 
 app = Flask(__name__)

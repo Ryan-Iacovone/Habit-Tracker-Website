@@ -3,11 +3,15 @@ import matplotlib
 import plotly.express as px
 import plotly.io as pio
 import io
+import pandas as pd
+from sqlalchemy import text
+from zoneinfo import ZoneInfo
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 from plotnine import *
 from data_cleaning import Read_Apple_Workouts, gen_month_freq_df, gen_distance_df, gen_mins_df, gen_workout_time_df, gen_activity_treemap_df, gen_steps_month_df, gen_weekly_workout_time_df
+from db import engine
 
 matplotlib.use('Agg')  # use non-GUI backend for Flask app
 
@@ -352,3 +356,85 @@ def activity_treemap():
     treemap_plotly_html = pio.to_html(fig, full_html=False)
 
     return treemap_plotly_html
+
+
+############### KPI Stats Generation ###############
+
+def get_kpi_stats():
+
+    # Calculating steps per day in SQLite, then using localtime function to get to EST from UTC
+    with engine.connect() as connection:
+        daw = pd.read_sql_query( # daw = distinct apple workouts
+            text("""SELECT DATE(aw.startDate, 'localtime') as Date, aw.activity, aw.value 
+                    FROM apple_workouts aw 
+                    WHERE aw.metric = 'Duration' AND aw.value > 10
+                    ORDER BY aw.StartDate desc """), connection,
+            #dtype={"value": "int64"},
+            #params={"t_filter": l_1_y.astimezone(ZoneInfo("UTC"))},
+            parse_dates=['Date'])
+        
+    # Creating a week categorical variable (copied from inital aw_all completion)
+    # calculating out necessary time metrics when reading in apple workouts data
+    ## calculates how many days each weekday is from monday and subtracts that from the orignal date to get back to start of the week Monday
+    daw['week_date'] = (daw['Date'] - pd.to_timedelta(daw['Date'].dt.weekday, unit="D") ).dt.normalize() # Resulting date is in EST (I believe this is the correct move when filtering later on) # dt.weekday uses Monday as 0 
+
+        # Create a string label for display
+    daw['week'] = daw['week_date'].dt.strftime('%b %d')
+
+    # Set 'week_label' as a categorical(factor variable) with order based on 'week_period'
+    week_order = daw.sort_values('week_date')['week'].unique()
+    daw['week'] = pd.Categorical(daw['week'], categories=week_order, ordered=True)
+
+
+    # Gathering times for filtering
+    today = datetime.now(tz=ZoneInfo("US/Eastern"))
+    this_month = today.strftime('%b %Y')
+    last_month = (today - relativedelta(months=1)).strftime('%b %Y')
+    current_year = int(today.strftime('%Y'))
+    duration_length = 10
+
+    # Gather names for displaying on front end
+    current_month_name = today.strftime('%B')
+    last_month_name = (today - relativedelta(months=1)).strftime('%B') 
+
+    # Gathering wokrout counts (classifying a true workout to be greater than 10 minutes long)
+    ## Current Month Workout Count
+    wokrout_count_CM = len( daw[ (daw['Date'].dt.strftime('%b %Y') == this_month) ] )
+    ## Last month Workout Count
+    workout_count_LM = len( daw[ (daw['Date'].dt.strftime('%b %Y') == last_month) ] )
+    ## Current Year Workout Count
+    workout_count_year = len( daw[ (daw['Date'].dt.year == current_year) ] )
+
+    # Gather average weekly time spent working out using last 3 months data
+    workout_time_df = daw[ (daw['Date'].dt.date > l_3_m.date() ) ].groupby(['week_date'])['value'].agg(Time='sum', n='count').reset_index()
+    workout_time_hrs_avg = (workout_time_df["Time"].mean()/60).round(2) # Converting minutes to hours
+
+
+    # Calculating steps per day in SQLite, then using localtime function to get to EST from UTC
+    with engine.connect() as connection:
+        das_l3m = pd.read_sql_query( # das_l3m = daily average steps last 3 months
+            text("""SELECT AVG(value) as 'value'
+                    FROM (SELECT DATE(adr.startDate, 'localtime') as Date, SUM(adr.value) as 'value' 
+                            FROM apple_data_raw adr
+                            WHERE type = 'StepCount' AND value IS NOT NULL AND date(startDate, 'localtime') >= :t_filter
+                            GROUP BY date(startDate, 'localtime')
+                            ) """), connection,
+            #dtype={"value": "int64"},
+            params={"t_filter": l_3_m} )   #.astimezone(ZoneInfo("UTC"))},
+            #parse_dates=['Date'])
+
+    steps_L3_mon = round(das_l3m["value"].iloc[0], 0).astype("int")
+
+
+    # Saving output to csv instead of directly connecting to flask
+    asaved_df = pd.DataFrame({
+        'workout_count_year': workout_count_year,
+        'workout_count_LM': workout_count_LM,
+        'workout_count_CM': wokrout_count_CM,
+        'current_month_name': current_month_name,
+        'last_month_name': last_month_name,
+        'workout_time_hrs_avg': workout_time_hrs_avg,
+        'steps_L3_mon': steps_L3_mon
+    }, index=[0])
+
+    asaved_df.to_csv('static/kpi_stats.csv', index=False)

@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-from zoneinfo import ZoneInfo
 import pandas as pd
 from itertools import product
 from pandas.api.types import CategoricalDtype
@@ -377,42 +376,6 @@ def gen_steps_month_df(l_1_y):
     step_y_max = int(apple_steps["value"].max() + step_cush)
 
     return apple_steps, step_y_max
-
-
-
-############### KPI Statisitcs Functions ###############
-
-# Going to have to recreate this function with apple workout data
-def get_kpi_stats(apple_steps, l_3_m):
-
-    # gathering some date statistics for filtering but I'm not sure I like this method :/
-    today = datetime.now(tz=ZoneInfo("US/Eastern"))
-
-    this_month = today.strftime('%b %Y')
-    last_month = (today - relativedelta(months=1)).strftime('%b %Y')
-    current_year = int(today.strftime('%Y'))
-    duration_length = 10
-
-    # Gathering wokrout counts (classifying a true workout to be greater than 10 minutes long)
-    ## Current Month Workout Count
-    wokrout_count_CM = len(aw_all[(aw_all['month'] == this_month) & (aw_all['metric'] == 'Duration') & (aw_all['value'] >= duration_length)])
-    ## Last month Workout Count
-    workout_count_LM = len(aw_all[(aw_all['month'] == last_month) & (aw_all['metric'] == 'Duration') & (aw_all['value'] >= duration_length)])
-    ## Current Year Workout Count
-    workout_count_year = len(aw_all[(aw_all['StartDate'].dt.year == current_year) & (aw_all['metric'] == 'Duration') & (aw_all['value'] >= duration_length)])
-
-    # Average daily step count last 3 months
-    steps_L3_mon = apple_steps[apple_steps['date'] >= l_3_m]['value'].mean().round(0).astype("int")
-
-    # Gather average weekly time spent working out using last 3 months data
-    workout_time_df = aw_all[(aw_all['metric'] == 'Duration') & (aw_all['week_date'] > l_3_m) ].groupby(['week_date'])['value'].agg(Time='sum', n='count').reset_index()
-    workout_time_hrs_avg = (workout_time_df["Time"].mean()/60).round(2)
-
-    # Gather names for above statistic
-    current_month_name = today.strftime('%B')
-    last_month_name = (today - relativedelta(months=1)).strftime('%B') 
-
-    return workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg, steps_L3_mon
 
 
 
