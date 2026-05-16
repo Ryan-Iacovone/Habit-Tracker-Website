@@ -1,5 +1,5 @@
 # Use the official smaller Python image from the Docker Hub
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 # Install UV from Astral.sh
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

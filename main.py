@@ -205,17 +205,28 @@ def exercise_filter_page():
 @app.route('/overview_visualizations', methods=['GET', 'POST'])
 def overview_visualization_page():
 
-    # Bringing in steps df primarily used in visualization section here for KPI analysis
-    # Need to still return step_y_max here although I only use apple steps in the following steps (step_y_max is for graph)  
-    apple_steps, step_y_max = gen_steps_month_df(l_1_y)
+    # Bringing in df of kpis from pre-ran csv file
 
-    workout_count_year, workout_count_LM, wokrout_count_CM, current_month_name, last_month_name, workout_time_hrs_avg, steps_L3_mon = get_kpi_stats(apple_steps, l_3_m)
+    #df = pd.read_csv(r'static\kpi_stats.csv')
+    df = pd.read_csv('static/kpi_stats.csv')
+
+    workout_count_year = df['workout_count_year'].iloc[0]
+    workout_count_LM = df['workout_count_LM'].iloc[0]
+    workout_count_CM = df['workout_count_CM'].iloc[0]
+    current_month_name = df['current_month_name'].iloc[0]
+    last_month_name = df['last_month_name'].iloc[0]
+    workout_time_hrs_avg = df['workout_time_hrs_avg'].iloc[0]
+    steps_L3_mon = df['steps_L3_mon'].iloc[0]
+
+    # Opening the html file for the treemap visual
+    with open("static/charts/activity_treemap.html", "r", encoding="utf-8") as f:
+        treemap_plotly_html_read = f.read()
 
     return render_template('overview_visualizations.html',
                           #KPIs 
                           ytd_count = workout_count_year,
                           mtd_count_LM = workout_count_LM,
-                          mtd_count = wokrout_count_CM,
+                          mtd_count = workout_count_CM,
                           workout_time_avg=workout_time_hrs_avg,
                           steps_L3_mon = steps_L3_mon,
 
@@ -228,7 +239,8 @@ def overview_visualization_page():
                           #workouts_by_month_html=workouts_by_month_html,
 
                           # Interactive plots (non png) 
-                          treemap_plotly_html = activity_treemap())
+                          treemap_plotly_html = treemap_plotly_html_read
+                          )
 
 
 
