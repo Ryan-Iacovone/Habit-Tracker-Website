@@ -2,6 +2,8 @@
 from datetime import datetime, timedelta
 import calendar 
 import time
+import markdown
+
 # Flask
 from flask import Flask, render_template, request, jsonify
 
@@ -483,6 +485,18 @@ def habit_calendar_page():
     )
 
 
+@app.route('/coding_cheatsheet')
+def hidden_cheatsheet():
+    cheatsheet_path = "static/coding_cheatsheet.md"
+
+    with open(cheatsheet_path, "r", encoding="utf-8") as f:
+        md_text = f.read()
+
+    # Converting markdown file to HTML (actually works pretty well!)
+    html_cheatsheet = markdown.markdown(md_text, extensions=["tables"])
+
+    return html_cheatsheet
+
 # Clean shutdown of DB connections
 @app.teardown_appcontext
 def shutdown_session(exception=None):
@@ -496,4 +510,4 @@ def shutdown_session(exception=None):
 
 if __name__ == '__main__':
     init_db()  # Initialize sql database when the app starts for the first time (taken from db.py)
-    app.run(debug=False, host="0.0.0.0", port=8501)
+    app.run(debug=True, host="0.0.0.0", port=8501)
