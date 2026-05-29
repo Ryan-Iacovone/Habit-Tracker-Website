@@ -62,7 +62,7 @@ HABITS = {
         "questions": [
             {"id": "habit_date", "text": "Date:", "type": "date", "required": True},
             {"id": "time", "text": "Time of Day:", "type": "select", "required": True, "options": ["Morning", "Evening", "Both"]},
-            {"id": "stretch_type", "text": "Stretch:", "type": "select", "required": True, "options": ["Standing Childs Pose", "Wall Slides", "Triceps Stretch", "Seated Assisted External Rotation", "5lb Shoulder Press", "Floor Slides", "Shoulder Rolls" ]},
+            {"id": "stretch_type", "text": "Stretch:", "type": "select", "required": True, "options": ["Heel Drop", "Wall Calf Stretch", "Ankle Stabilization", "Standing Childs Pose", "Wall Slides", "Triceps Stretch", "Seated Assisted External Rotation", "5lb Shoulder Press", "Floor Slides", "Shoulder Rolls" ]},
             {"id": "comment", "text": "Notes:", "type": "text"}
         ]
     }

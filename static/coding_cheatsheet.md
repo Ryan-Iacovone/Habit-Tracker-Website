@@ -1,48 +1,14 @@
-# Linux & Docker Cheatsheet
-
-> reference for Docker, Linux, and Git commands.
+# General Coding & Computer Cheatsheet
 
 
-## Docker — Containers
-
+## Docker
+#### Basic Docker ommands, everything else I can do in Portainer
 | Command | Description |
 |---|---|
-| `docker compose up -d --build` | Build and start containers in detached mode. Use `--build` only when Dockerfile or dependencies changed. |
-| `docker compose up -d` | Start containers in detached mode without rebuilding images. |
+| `docker compose up -d --build` | Build and start containers in detached mode rebuilding the docker images from scratch.
 | `docker compose down` | Stop and remove containers and networks. Add `--volumes` to also remove named volumes. |
-| `docker compose stop` | Pause containers without removing them. Resume with `docker compose start`. |
-| `docker compose restart` | Restart all containers in the current project without rebuilding. |
-| `docker restart <id>` | Restart a specific container by its ID or name. |
-| `docker ps` | List all running containers on the host. Add `-a` to include stopped containers. |
-| `docker compose ps` | List containers scoped to the current compose project. |
-| `docker stats` | Live stream of CPU, memory, and network usage per container. |
-| `docker inspect <id>` | Return low-level JSON details about a container (IP, mounts, env vars, etc.). |
-| `docker rm <id>` | Remove a stopped container. Add `-f` to force-remove a running one. |
-| `docker system prune` | Remove all stopped containers, unused networks, dangling images, and build cache. |
-
----
-
-## Docker — Logs & Shell Access
-
-| Command | Description |
-|---|---|
-| `docker compose logs -f` | Follow live log output for all services in the current project. |
-| `docker compose logs -f <service>` | Follow logs for a single named service (e.g. `web`, `db`). |
-| `docker logs <id>` | Print log output from a specific container. Add `--tail 100` to limit to last 100 lines. |
-| `docker exec -it <id> bash` | Open an interactive bash shell inside a running container. Use `sh` for Alpine-based images. |
-| `docker exec <id> <cmd>` | Run a one-off command inside a running container without opening a shell. |
-
----
-
-## Docker — Images
-
-| Command | Description |
-|---|---|
 | `docker images` | List all locally available images. |
 | `docker pull <image>:<tag>` | Download an image from a registry (default: Docker Hub). |
-| `docker build -t <name> .` | Build an image from the Dockerfile in the current directory and tag it. |
-| `docker rmi <image>` | Remove a local image by name or ID. |
-| `docker image prune` | Delete all dangling (untagged) images to free up disk space. |
 
 ---
 
@@ -51,20 +17,14 @@
 | Command | Description |
 |---|---|
 | `pwd` | Print the current working directory path. |
-| `ls -lah` | List files in long format with human-readable sizes, including hidden files. |
-| `cd <path>` | Change directory. Use `cd ~` for home, `cd -` to return to previous directory. |
-| `cp -r <src> <dest>` | Copy files or directories recursively. |
-| `mv <src> <dest>` | Move or rename a file or directory. |
+| `ls -lah` | List files directory with last modified date + file size. |
+| `cd -` | Navigate to previous directory. |
+| `cp -r <src> <dest>` | Copy files or directories to new locations. -r (recursive) will include all subdirectories. |
+| `mv <src> <dest>` | Move or rename a file or directory. -r not needed here. |
 | `rm -rf <path>` | Forcefully remove a file or directory and all its contents. Use with caution. |
-| `mkdir -p <path>` | Create a directory and all missing parent directories. |
-| `find <dir> -name "*.log"` | Search for files matching a pattern within a directory tree. |
+| `mkdir -p <path>` | Create a directory. -p fills in all missing parent directories if don't already exist 'mkdir projects/python/app' |
 | `cat <file>` | Print the full contents of a file to stdout. |
-| `less <file>` | Scroll through a file interactively. Press `q` to quit. |
-| `tail -f <file>` | Follow a file in real time — useful for watching log files. |
-| `grep -r "pattern" <dir>` | Recursively search for a text pattern across files in a directory. |
-| `chmod +x <file>` | Make a file executable. Use `chmod 755` for scripts others can read/execute. |
 | `chown user:group <file>` | Change the owner and group of a file or directory. Add `-R` to apply recursively. |
-| `ln -s <target> <link>` | Create a symbolic link pointing to a target file or directory. |
 
 ---
 
@@ -72,7 +32,7 @@
 
 | Command | Description |
 |---|---|
-| `top` / `htop` | Interactive process viewer. `htop` is more readable (may need installing). |
+| `htop` | Interactive process viewer. Terminal task manager |
 | `ps aux` | Snapshot of all running processes with PID, CPU, and memory usage. |
 | `kill <pid>` | Send SIGTERM (graceful stop) to a process. Use `kill -9 <pid>` to force-kill. |
 | `df -h` | Show disk usage for all mounted filesystems in human-readable format. |
