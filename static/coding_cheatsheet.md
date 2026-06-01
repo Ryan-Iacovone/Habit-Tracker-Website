@@ -24,11 +24,12 @@
 | `rm -rf <path>` | Forcefully remove a file or directory and all its contents. Use with caution. |
 | `mkdir -p <path>` | Create a directory. -p fills in all missing parent directories if don't already exist 'mkdir projects/python/app' |
 | `cat <file>` | Print the full contents of a file to stdout. |
+| `chmod +x <file>` | Makes a file executable, like a bash file for running systemd scripts
 | `chown user:group <file>` | Change the owner and group of a file or directory. Add `-R` to apply recursively. |
 
 ---
 
-## Linux — Processes & System - this is a test test
+## Linux — Processes & System
 
 | Command | Description |
 |---|---|
