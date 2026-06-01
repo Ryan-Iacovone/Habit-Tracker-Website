@@ -41,6 +41,3 @@ The app will be available at `http://0.0.0.0:8501`.
 
 ## 🗂️ Database Architecture
 The application uses a SQLite database (`habits.db`).  Schema definitions live in `db.py` and include tables such as `habits`, `habit_entries`, `habit_answers`, `access_log`, `tenrm_plans`, `tenrm_completions`, `apple_workouts`, and `apple_data_raw`.
-
-## 📄 License
-MIT
