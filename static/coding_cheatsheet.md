@@ -2,7 +2,7 @@
 
 
 ## Docker
-#### Basic Docker ommands, everything else I can do in Portainer
+#### Basic Docker commands, everything else I can do in Portainer
 | Command | Description |
 |---|---|
 | `docker compose up -d --build` | Build and start containers in detached mode rebuilding the docker images from scratch.
@@ -60,6 +60,18 @@
 | `ssh user@host` | Open a secure shell session to a remote machine. |
 
 ---
+
+## UV
+| Command | Description |
+|---|---|
+| `uv python pin 3.11` | Pins a particular version of python to the project by chaning the .python-version file. For downgrading python need to manually change pyproject.toml file |
+| `uv sync` | Sync the virtual env to all packages in the project |
+| `uv venv --python 3.11` | Creates python environment with optional tag to specify version |
+| `uv lock --refresh` | Regenerates the .lock file, without refresh tag will create a lock file for project dependencies |
+| `$ uv python upgrade 3.12` | Upgrade a Python version to the latest supported patch release: |
+
+---
+
 
 ## systemd — Services
 
@@ -132,7 +144,7 @@
 | `git checkout -b <branch>` | Create and switch to a new branch. |
 | `git checkout <branch>` | Switch to an existing branch. |
 | `git stash` | Temporarily shelve uncommitted changes. Restore with `git stash pop`. |
-| `git fetch origin` | Download latest changes from GitHub without touching your working directory. |
+| `git fetch origin` | Downloads any new commits from remote and updates git's internal knowledge of what the remote looks like without touching files |
 | `git reset --hard origin/main` |      Reset tracked files to exactly match the remote branch, discarding all local changes. Could also be master instead of main |
 | `git clean -fd` | Delete untracked **files and directories** that are not in `.gitignore`. Run after `reset --hard` to fully clean up. |
 | `git pull --rebase` | Pull and replay your commits on top of the remote — cleaner history than a merge commit. |
