@@ -1,0 +1,131 @@
+WINDOWS TROUBLESHOOTING TECHNIQUES
+===================================
+
+COMMAND PROMPT (Run as Administrator)
+=====================================
+
+System File Checker:
+  sfc /scannow
+  - Scans and repairs corrupted system files
+
+DISM Commands (Deployment Image Servicing):
+  DISM /Online /Cleanup-Image /CheckHealth
+  DISM /Online /Cleanup-Image /ScanHealth
+  DISM /Online /Cleanup-Image /RestoreHealth
+  - Repairs Windows image and system files
+
+Check Disk:
+  chkdsk C: /f /r
+  - Checks and repairs disk errors (requires restart)
+
+Network Troubleshooting:
+  ipconfig /release
+  ipconfig /renew
+  ipconfig /flushdns
+  - Resets network connection and clears DNS cache
+  
+  netsh winsock reset
+  netsh int ip reset
+  - Resets network stack
+
+Clear Temp Files:
+  del /q/f/s %TEMP%\*
+  - Deletes temporary files
+
+System Information:
+  systeminfo
+  - Displays detailed system configuration
+
+Memory Diagnostic:
+  mdsched
+  - Opens Windows Memory Diagnostic tool
+
+
+DEVICE MANAGER
+==============
+
+Check for Issues:
+  - Look for yellow exclamation marks or red X marks
+  - These indicate driver problems or disabled devices
+
+Update Drivers:
+  - Right-click device → Update driver
+  - Choose "Search automatically for drivers"
+
+Roll Back Drivers:
+  - Right-click device → Properties → Driver tab
+  - Click "Roll Back Driver" if available
+
+Uninstall/Reinstall Device:
+  - Right-click device → Uninstall device
+  - Restart computer to reinstall automatically
+
+Show Hidden Devices:
+  - View menu → Show hidden devices
+  - Helps find phantom or old devices
+
+Disable/Enable Device:
+  - Right-click device → Disable/Enable
+  - Can fix stuck or malfunctioning devices
+
+
+CONTROL PANEL
+=============
+
+Programs and Features:
+  - Uninstall problematic software
+  - Repair installed programs
+
+Windows Update:
+  - Check for and install updates
+  - View update history
+
+Power Options:
+  - Change power plan settings
+  - Troubleshoot sleep/hibernation issues
+
+System (Advanced settings):
+  - Performance Options → Adjust for best performance
+  - Startup and Recovery settings
+  - System Protection (restore points)
+
+Network and Sharing Center:
+  - Troubleshoot network problems
+  - Reset network adapter
+
+Troubleshooting:
+  - Run built-in troubleshooters for various issues
+  - Hardware and Sound, Network, System and Security
+
+Administrative Tools:
+  - Event Viewer: Check system logs for errors
+  - Services: Start/stop/restart Windows services
+  - Disk Cleanup: Free up disk space
+
+
+ADDITIONAL USEFUL COMMANDS
+===========================
+
+PowerShell (Run as Administrator):
+  Get-AppxPackage -allusers | foreach {Add-AppxPackage -register "$($_.InstallLocation)\appxmanifest.xml" -DisableDevelopmentMode}
+  - Repairs/reinstalls Windows Store apps
+
+Safe Mode:
+  - Hold Shift while clicking Restart
+  - Or: Settings → Update & Security → Recovery → Advanced startup
+
+Create System Restore Point:
+  - Control Panel → System → System Protection → Create
+
+Task Manager (Ctrl+Shift+Esc):
+  - End unresponsive programs
+  - Check startup programs
+  - Monitor system performance
+
+
+NOTES
+=====
+- Always create a restore point before making major changes
+- Run Command Prompt as Administrator for most commands
+- Restart computer after making significant changes
+- Back up important data regularly
