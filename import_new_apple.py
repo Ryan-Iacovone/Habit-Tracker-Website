@@ -9,10 +9,11 @@ from datetime import datetime, date
 from fitparse import FitFile
 
 # Local database import
-from db import engine 
-
+from db import engine, init_db
 from apple.apple_health_xml_convert import preprocess_to_temp_file, strip_invisible_character, xml_to_csv, save_to_csv, \
 remove_temp_file
+
+init_db()
 
 def apple_health_xml_convert():
     file_path = r"apple/export.xml"

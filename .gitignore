@@ -12,7 +12,6 @@ habits.db-wal
 .venv
 
 # App files
-bike_files/*.fit
 cronometer/*.csv
 apple/*.xml
 apple/*.csv
