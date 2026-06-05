@@ -1,14 +1,21 @@
+# Python specific
 .env
 __pycache__
-apple/
-# Databse
+
+# Database
 habits.db
+habits.db-shm
+habits.db-wal
 
 # Environment
 .idea
 .venv
 bike_files/
 
-# Exclude SQLite temporary files
-habits.db-shm
-habits.db-wal
+# App files
+bike_workout_files/*.fit
+cronometer/*.csv
+apple/*.xml
+apple/*.csv
+apple/workout-routes
+apple/tristan_data

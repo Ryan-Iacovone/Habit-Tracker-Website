@@ -112,7 +112,7 @@ def aw_to_long(apple_workouts):
         value=duration_rows['duration'],
         type='Duration')[['startDate', 'workoutActivityType', 'type', 'measurement_type', 'value', 'durationUnit']]
 
-    # Combine and clean
+    # Combine and clean - this is where we get only workout specific info now that we're filtering on value
     aw_long = pd.concat([df_long[df_long['value'].notna()][['startDate', 'workoutActivityType', 'type', 'measurement_type', 'value', 'durationUnit']],
         duration_rows], ignore_index=True)
 
@@ -120,10 +120,12 @@ def aw_to_long(apple_workouts):
     aw_long.rename(columns={'startDate': 'StartDate', 'workoutActivityType': 'activity', 'type': 'metric', # Why do I rename StartDate to be different than apple data raw?
                         'measurement_type': 'measurement_type', 'value': 'value', 'durationUnit': 'd_unit'}, inplace=True)
 
-    # cleaning value column to only go out 2 decimal places
-    aw_long['value'] = aw_long['value'].round(2)
+    if not aw_long.empty:
 
-    aw_long.sort_values('StartDate', ascending=False, inplace=True)
+        # cleaning value column to only go out 2 decimal places
+        aw_long['value'] = aw_long['value'].round(2)
+
+        aw_long.sort_values('StartDate', ascending=False, inplace=True)
 
     return aw_long
 
@@ -176,7 +178,7 @@ def final_upload(aw_final):
 
 
 
-#### Uploading .fit bike workouts to db 
+#### Uploading .fit bike workouts to db ####
 
 ### Bike Workout table
 def bike_workout_upload(raw_bike_data, today_upload_date):
@@ -302,69 +304,72 @@ def upload_new_fit_files(directory, today_upload_date):
     file_number = 0
     total_unprocessed_files = len([file for file in os.listdir(directory) if "Bike Workout" not in file])
 
-    for file_path in os.listdir(directory):
-        # Filtering to fit files that I have not processed yet (All processed files get renamed)
-        if "Bike Workout" not in file_path:
-            bike_fit_file = os.path.join(directory, file_path)
+    if total_unprocessed_files != 0:
+        for file_path in os.listdir(directory):
+            # Filtering to fit files that I have not processed yet (All processed files get renamed)
+            if "Bike Workout" not in file_path:
+                bike_fit_file = os.path.join(directory, file_path)
 
-            # This is where python creates the connection to the fit file and reads it in
-            fitfile = FitFile(bike_fit_file)
+                # This is where python creates the connection to the fit file and reads it in
+                fitfile = FitFile(bike_fit_file)
 
-            # Initializing rows
-            rows = []
+                # Initializing rows
+                rows = []
 
-            # Iterate over all record messages
-            for record in fitfile.get_messages('record'):
-                row = {}
+                # Iterate over all record messages
+                for record in fitfile.get_messages('record'):
+                    row = {}
 
-                # Each record contains multiple data fields
-                for field in record:
-                    row[field.name] = field.value
+                    # Each record contains multiple data fields
+                    for field in record:
+                        row[field.name] = field.value
 
-                rows.append(row)
+                    rows.append(row)
 
-            # Create DataFrame
-            df = pd.DataFrame(rows)
+                # Create DataFrame
+                df = pd.DataFrame(rows)
 
-            # Dropping heart rate because it's blank
-            raw_bike_data = df.drop(columns="heart_rate")
+                # Dropping heart rate because it's blank
+                raw_bike_data = df.drop(columns="heart_rate")
 
-            # Putting bike data into appropriate tables
-            ## Inserting data into the Bike workouts table
-            workout_id = bike_workout_upload(raw_bike_data, today_upload_date)
+                # Putting bike data into appropriate tables
+                ## Inserting data into the Bike workouts table
+                workout_id = bike_workout_upload(raw_bike_data, today_upload_date)
 
-            ## Inserting data into the Bike units table
-            bike_data_long = bike_units_upload(raw_bike_data)    
+                ## Inserting data into the Bike units table
+                bike_data_long = bike_units_upload(raw_bike_data)    
 
-            ## Inserting data into the Bike metrics table
-            bike_metrics_upload(bike_data_long, workout_id)
+                ## Inserting data into the Bike metrics table
+                bike_metrics_upload(bike_data_long, workout_id)
 
-            # For each fit file changing the name so I don't read it in again  
-            for record in fitfile.get_messages('record'):
-                for field in record:
-                    if field.name == "timestamp":     #, field.value, field.units
-                        file_date = field.value
-                        # String formatting the date variable
-                        file_date = file_date.strftime('%m-%d-%Y')
+                # For each fit file changing the name so I don't read it in again  
+                for record in fitfile.get_messages('record'):
+                    for field in record:
+                        if field.name == "timestamp":     #, field.value, field.units
+                            file_date = field.value
+                            # String formatting the date variable
+                            file_date = file_date.strftime('%m-%d-%Y')
+                            break
+                    if file_date:
                         break
-                if file_date:
-                    break
 
-            # Important to discard the connection to fitfile before saving over it otherwise os.rename will error out because python is still using the file
-            del fitfile
+                # Important to discard the connection to fitfile before saving over it otherwise os.rename will error out because python is still using the file
+                del fitfile
 
-            # This would be bad if we can't find timestamp data
-            if not file_date:
-                print(f"No timestamp found for {file_path}")
-                continue
-            
-            # Renaming current file to fit naming schema: 01-14-2026 Bike Workout
-            os.rename(bike_fit_file, os.path.join(directory, f"{file_date} Bike Workout.fit"))
+                # This would be bad if we can't find timestamp data
+                if not file_date:
+                    print(f"No timestamp found for {file_path}")
+                    continue
+                
+                # Renaming current file to fit naming schema: 01-14-2026 Bike Workout
+                os.rename(bike_fit_file, os.path.join(directory, f"{file_date} Bike Workout.fit"))
 
-            file_number += 1
-            
-            # Readable step to ensure correct number of files are processed
-            print(f"Processed file '{file_path}', number {file_number} out of {total_unprocessed_files}")
+                file_number += 1
+                
+                # Readable step to ensure correct number of files are processed
+                print(f"Processed file '{file_path}', number {file_number} out of {total_unprocessed_files}")
+    
+    return total_unprocessed_files
 
 
 ### Use newly inserted bike workout data to add specific metrics to clycling workouts in the apple_wokrouts table
@@ -468,6 +473,63 @@ def upload_fit_to_apple(fit_total, apple_cycle):
                         'workout_id': row["workout_id"]
                     })
 
+######### Functions to add food data from cronometer to sqlite db #########
+def upload_food_daily(cronometer_csv_path):
+
+    food = pd.read_csv(cronometer_csv_path)
+
+    # Because we're only storing dates, no need to add timezone, but everything is stored as EST
+
+    # Grabbing the lastest food date
+    with engine.connect() as connection: 
+        latest_food_date = pd.read_sql_query( 
+            text("""SELECT MAX(food_date) as max_date 
+                    FROM food_daily
+                """), connection )
+        
+    latest_food_date = latest_food_date["max_date"].iloc[0]
+
+    # Checking if sql df is empty or not to determine how much new data to add
+    if pd.isna(latest_food_date):
+        new_food = food
+    else:
+        new_food = food[food["Date"] > latest_food_date]
+
+    # Selecting specific columns then filtering by date for new uploads 
+    # Need drop duplicates because days are stratified by groups and for this data they're all the same
+    food_daily = new_food[["Date", "Completed"]].rename(columns={"Date": "food_date", "Completed": "completed"}).drop_duplicates() 
+
+    today_upload_date = date.today().strftime("%m-%d-%Y")
+
+    food_daily["upload_date"] = today_upload_date 
+
+    food_daily.to_sql(name="food_daily", con=engine, if_exists='append', index=False)
+
+    print("New food data uploaded to food daily table")
+
+    return new_food
+
+def upload_fact_food(new_food):
+    # read back in the data we just uploaded
+    with engine.connect() as connection: 
+        # renaming food_date back to date for simplicity of merging in IDs
+        # and id as food_daily_id to match with fact food table
+        food_daily_new = pd.read_sql_query( 
+            text("""SELECT id as food_daily_id, DATE(food_date) as Date 
+                    FROM food_daily
+                    WHERE upload_date = :today_date"""), connection,                     
+            params={"today_date": str(today_upload_date)}, # Using the str version of the datetime for filtering
+            dtype={"food_daily_id": "Int64"}) # Parse date here takes out need for pd.to_datetime below 
+        
+    # Create fact table for food
+    food_filt = new_food.drop(columns=["Completed"])
+
+    food_long = pd.melt(food_filt, id_vars=["Date", "Group"], var_name="food_category", value_name="value")
+
+    fact_food = pd.merge(food_long, food_daily_new, how = "left", on="Date").drop(columns=["Date"]).rename(columns={"Group": "meal_time"})
+
+    fact_food.to_sql(name="fact_food", con=engine, if_exists='append', index=False)
+
 
 if __name__ == '__main__':
     
@@ -496,64 +558,92 @@ if __name__ == '__main__':
     print("\nMoving on to data cleaning stage... \n")
     time.sleep(1)
 
+    #### Uploading new apple raw data to sqlite ####
+
     # Grabbing existing max date from apple_data_raw table so that we can tell what data is old and new 
     print("Grabbing the max date from existing DB \n")
     max_UTC_date_db = max_date()
 
     # Uploading new raw apple data to apple_data_raw table, based on inital max date of the apple_data_raw db
-    print("Uploading new raw Apple CSV data to the raw Apple SQL DB \n")
+    print("Uploading new raw Apple CSV data to the apple_data_raw table \n")
     upload_new_raw_apple_data(max_UTC_date_db)
     time.sleep(.5)
 
-    # Read in newly uploaded raw apple data from the sql dbbv
-    print("Reading in newly uploaded raw apple data from apple_data_raw SQL DB \n")
+    #### Uploading new apple workout data to sqlite based on the raw apple data just uploaded ####
+
+    # Read in newly uploaded raw apple data from sqlite returning strcutre of apple workout data
+    print("Reading in newly uploaded data from apple_data_raw table \n")
     apple_workouts = Read_Apple_Workouts(max_UTC_date_db)
 
-    # Convert apple workouts to long format plus selecting specific columns
-    print("Cleaning newly uploaded Apple raw data into only apple workouts\n")
+    # Convert apple workouts to long format as well as filtering to just apple workouts (where we find out if we have any new data or not)
+    print("Cleaning newly uploaded apple raw data into apple workouts only data\n")
     aw_long = aw_to_long(apple_workouts)
 
-    # Properly add in workout id taking into account existing max workout id plus coalescing activity variable 
-    aw_final = add_workout_id(aw_long)
+    if not aw_long.empty:
 
-    print("Uploading newly cleaned apple workouts data to 'apple_workouts' SQL DB \n")
-    # Final Upload
-    final_upload(aw_final)
+        # Properly add in workout id taking into account existing max workout id plus coalescing activity variable 
+        aw_final = add_workout_id(aw_long)
 
-    # Displaying date range bulk upload took place for
-    print(f"Uploaded apple data from {str(max_UTC_date_db)} to {str(max(apple_workouts['startDate']))} ")
+        print("Uploading newly cleaned apple workouts data to 'apple_workouts' table \n")
+        # Final Upload
+        final_upload(aw_final)
 
-    ####### .fit file ETL process #######
-    print("\nNow moving on to uploading bike workouts from .fit files to bike specific SQL tables... \n")
+        # Displaying date range bulk upload took place for
+        print(f"Uploaded apple data from {str(max_UTC_date_db)} to {str(max(apple_workouts['startDate']))} ")
+    
+    print("No new apple workouts to upload today \n")
+
+
+    ####### Bike .fit file ETL process #######
+    print("\nMoving on to check if any bike workouts from .fit files need to be uploaded to bike specific SQL tables... \n")
 
     time.sleep(1)
 
     ## Directory where all fit files are saved
-    bike_directory = r"bike_files"
+    bike_directory = r"bike_workout_files"
 
     ## Defining server upload time once to use in multiple places
     today_upload_date = date.today().strftime("%m-%d-%Y")
 
     ## Specific function that uploads data to bike specific SQL tables
-    upload_new_fit_files(bike_directory, today_upload_date)
+    total_unprocessed_files = upload_new_fit_files(bike_directory, today_upload_date)
 
-    print("\nUploaded bike data from .fit files to bike specific SQL tables")
+    # Checking if we had any unprocessed .fit files that need to be uploaded  
+    if total_unprocessed_files != 0:
+        print("\nUploaded bike data from .fit files to bike_metrics, bike_units, and bike_workout tables")
 
+        time.sleep(1)
+
+        ## Uploading specific metrics from bike tables to apple_workouts 
+        print("\nUploading specific bike metrics from .fit file to cycling workouts in apple_workouts table")
+
+        ## Gathering all bike workout data from apple_workouts
+        apple_cycle = get_apple_cycle_data()
+
+        ## Gathering all specific metrics like total distance and avg wattage for each .fit bike workout
+        fit_total = get_fit_cycle_data(today_upload_date)
+
+        ## Merging .fit metrics to apple_workouts cycling data and uploading to apple_workouts table 
+        upload_fit_to_apple(fit_total, apple_cycle)
+
+        print("\n.fit data successfully matched and uploaded to apple_workouts table. Exiting script...")
+    
+    else: 
+        print("\nNo new bike .fit files needed to be uploaded today")
+
+
+    ###### Implementing food uploads to sqlite database ######
+    cronometer_csv_path = r"cronometer\dailysummary.csv"
+
+    print("\nUploading new daily food data to food_daily table")
+    new_food = upload_food_daily(cronometer_csv_path)
+
+    print("\nUploading new food values to food_fact table")
+    upload_fact_food(new_food)
+
+    print("\nAll Food data successfuly imported\n")
     time.sleep(1)
 
-    ####### Uploading specific metrics from bike tables to apple_workouts #######
-
-    print("\nUploading specific bike metrics from .fit file to cycling workouts in apple_workouts table")
-
-    ## Gathering all bike workout data from apple_workouts
-    apple_cycle = get_apple_cycle_data()
-
-    ## Gathering all specific metrics like total distance and avg wattage for each .fit bike workout
-    fit_total = get_fit_cycle_data(today_upload_date)
-
-    ## Merging .fit metrics to apple_workouts cycling data and uploading to apple_workouts table 
-    upload_fit_to_apple(fit_total, apple_cycle)
-
-    print("\n.fit data successfully matched and uploaded to apple_workouts table. Exiting script...")
+    print("\nAll data successfully imported! Now exiting script...\n") 
 
     time.sleep(12)

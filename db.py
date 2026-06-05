@@ -129,6 +129,7 @@ def init_db():
                             activity_type TEXT, 
                             workout_id REAL)"""))
         
+        # bike workouts table        
         conn.execute(text("""CREATE TABLE IF NOT EXISTS bike_workout (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             start_time TEXT,
@@ -151,3 +152,19 @@ def init_db():
                             value REAL,
                             FOREIGN KEY (workout_id) REFERENCES bike_workout(id),
                             FOREIGN KEY (metric_id) REFERENCES bike_units(id))"""))
+        
+        # Create food day table from cronometer
+        conn.execute(text("""CREATE TABLE IF NOT EXISTS food_daily (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            completed TEXT,
+                            food_date TEXT,
+                            upload_date TEXT)"""))
+        
+        # Create fact food table 
+        conn.execute(text("""CREATE TABLE IF NOT EXISTS fact_food (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            meal_time TEXT,
+                            food_category TEXT, 
+                            value INTEGER,
+                            food_daily_id INTEGER,
+                            FOREIGN KEY (food_daily_id) REFERENCES food_daily(id) )"""))
