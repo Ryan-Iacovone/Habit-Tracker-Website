@@ -10,10 +10,9 @@ habits.db-wal
 # Environment
 .idea
 .venv
-bike_files/
 
 # App files
-bike_workout_files/*.fit
+bike_files/*.fit
 cronometer/*.csv
 apple/*.xml
 apple/*.csv
