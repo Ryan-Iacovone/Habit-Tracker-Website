@@ -591,8 +591,9 @@ if __name__ == '__main__':
 
         # Displaying date range bulk upload took place for
         print(f"Uploaded apple data from {str(max_UTC_date_db)} to {str(max(apple_workouts['startDate']))} ")
-    
-    print("No new apple workouts to upload today \n")
+
+    else:
+        print("No new apple workouts to upload today \n")
 
 
     ####### Bike .fit file ETL process #######

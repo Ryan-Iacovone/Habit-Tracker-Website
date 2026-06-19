@@ -65,7 +65,7 @@
 ## UV
 | Command | Description |
 |---|---|
-| `uv python pin 3.11` | Pins a particular version of python to the project by chaning the .python-version file. For downgrading python need to manually change pyproject.toml file |
+| `uv python pin 3.11` | Pins a particular version of python to the project by changing the .python-version file. To downgrade python need to manually change pyproject.toml file |
 | `uv sync` | Sync the virtual env to all packages in the project |
 | `uv venv --python 3.11` | Creates python environment with optional tag to specify version |
 | `uv lock --refresh` | Regenerates the .lock file, without refresh tag will create a lock file for project dependencies |
@@ -125,7 +125,6 @@
 |---|---|
 | `/etc/systemd/system/` | Where you place custom `.service` and `.timer` unit files. Takes priority over defaults. |
 | `/lib/systemd/system/` | Default unit files installed by packages. Don't edit these — override in `/etc/systemd/system/` instead. |
-| `systemctl cat <unit>` | Print the full contents of a unit file and any active override files. |
 | `systemctl edit <unit>` | Open an override file for a unit without touching the original. Changes survive package updates. |
 
 
