@@ -12,6 +12,43 @@
 
 ---
 
+## UV
+| Command | Description |
+|---|---|
+| `uv python pin 3.11` | Pins a particular version of python to the project by changing the .python-version file. To downgrade python need to manually change pyproject.toml file |
+| `uv sync` | Sync the virtual env to all packages in the project |
+| `uv venv --python 3.11` | Creates python environment with optional tag to specify version |
+| `uv lock --refresh` | Regenerates the .lock file, without refresh tag will create a lock file for project dependencies |
+| `uv python upgrade 3.12` | Upgrade a Python version to the latest supported patch release. 3.14.1 -> 3.14.6 |
+| `uv lock --upgrade-package <package>==<version>` | Upgrade a single package to a specific version |
+| `uv lock --upgrade` | Upgrade all packages |
+| `uv export --format requirements.txt` | Export contents of the lockfile to a requirements.txt file. | 
+| `uv python install 3.14.6` | Install specific python version. | 
+
+---
+
+## Git — Everyday Commands
+ 
+| Command | Description |
+|---|---|
+| `git status` | Show changed, staged, and untracked files in the working directory. |
+| `git log --oneline` | Compact commit history — one line per commit. Add `-10` to limit to last 10. |
+| `git diff` | Show unstaged changes. Add `--staged` to see what's already staged for commit. |
+| `git add <file>` | Stage a specific file for commit. Use `git add .` to stage all changes. |
+| `git commit -m "message"` | Commit staged changes with a message. |
+| `git push` | Push committed changes to the remote (GitHub). |
+| `git pull` | Fetch and merge changes from the remote into the current branch. |
+| `git branch` | List local branches. Add `-r` for remote branches, `-a` for all. |
+| `git checkout -b <branch>` | Create and switch to a new branch. |
+| `git checkout <branch>` | Switch to an existing branch. |
+| `git stash` | Temporarily shelve uncommitted changes. Restore with `git stash pop`. |
+| `git fetch origin` | Downloads any new commits from remote and updates git's internal knowledge of what the remote looks like without touching files |
+| `git reset --hard origin/main` |      Reset tracked files to exactly match the remote branch, discarding all local changes. Could also be master instead of main |
+| `git clean -fd` | Delete untracked **files and directories** that are not in `.gitignore`. Run after `reset --hard` to fully clean up. |
+| `git pull --rebase` | Pull and replay your commits on top of the remote — cleaner history than a merge commit. |
+
+---
+
 ## Linux — Navigation & Files
 
 | Command | Description |
@@ -61,18 +98,6 @@
 | `ssh user@host` | Open a secure shell session to a remote machine. |
 
 ---
-
-## UV
-| Command | Description |
-|---|---|
-| `uv python pin 3.11` | Pins a particular version of python to the project by changing the .python-version file. To downgrade python need to manually change pyproject.toml file |
-| `uv sync` | Sync the virtual env to all packages in the project |
-| `uv venv --python 3.11` | Creates python environment with optional tag to specify version |
-| `uv lock --refresh` | Regenerates the .lock file, without refresh tag will create a lock file for project dependencies |
-| `$ uv python upgrade 3.12` | Upgrade a Python version to the latest supported patch release: |
-
----
-
 
 ## systemd — Services
 
@@ -126,27 +151,5 @@
 | `/etc/systemd/system/` | Where you place custom `.service` and `.timer` unit files. Takes priority over defaults. |
 | `/lib/systemd/system/` | Default unit files installed by packages. Don't edit these — override in `/etc/systemd/system/` instead. |
 | `systemctl edit <unit>` | Open an override file for a unit without touching the original. Changes survive package updates. |
-
-
- 
-## Git — Everyday Commands
- 
-| Command | Description |
-|---|---|
-| `git status` | Show changed, staged, and untracked files in the working directory. |
-| `git log --oneline` | Compact commit history — one line per commit. Add `-10` to limit to last 10. |
-| `git diff` | Show unstaged changes. Add `--staged` to see what's already staged for commit. |
-| `git add <file>` | Stage a specific file for commit. Use `git add .` to stage all changes. |
-| `git commit -m "message"` | Commit staged changes with a message. |
-| `git push` | Push committed changes to the remote (GitHub). |
-| `git pull` | Fetch and merge changes from the remote into the current branch. |
-| `git branch` | List local branches. Add `-r` for remote branches, `-a` for all. |
-| `git checkout -b <branch>` | Create and switch to a new branch. |
-| `git checkout <branch>` | Switch to an existing branch. |
-| `git stash` | Temporarily shelve uncommitted changes. Restore with `git stash pop`. |
-| `git fetch origin` | Downloads any new commits from remote and updates git's internal knowledge of what the remote looks like without touching files |
-| `git reset --hard origin/main` |      Reset tracked files to exactly match the remote branch, discarding all local changes. Could also be master instead of main |
-| `git clean -fd` | Delete untracked **files and directories** that are not in `.gitignore`. Run after `reset --hard` to fully clean up. |
-| `git pull --rebase` | Pull and replay your commits on top of the remote — cleaner history than a merge commit. |
 
 ---
