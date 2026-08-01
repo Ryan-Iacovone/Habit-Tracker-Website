@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, text
 import time
 import numpy as np
 from zoneinfo import ZoneInfo
-from datetime import datetime, date
+import datetime as dt
 from fitparse import FitFile
 
 # Local database import
@@ -500,7 +500,7 @@ def upload_food_daily(cronometer_csv_path):
     # Need drop duplicates because days are stratified by groups and for this data they're all the same
     food_daily = new_food[["Date", "Completed"]].rename(columns={"Date": "food_date", "Completed": "completed"}).drop_duplicates() 
 
-    today_upload_date = date.today().strftime("%m-%d-%Y")
+    today_upload_date = dt.date.today().strftime("%m-%d-%Y")
 
     food_daily["upload_date"] = today_upload_date 
 
@@ -541,7 +541,7 @@ if __name__ == '__main__':
     ## Defining the subddirectroy where apple docs live
     directory = "apple/"
     ## Grabbing today's date
-    today = datetime.now().strftime('%Y-%m-%d') # Format: '2025-12-10' December 10th, 2025  datetime.now
+    today = dt.datetime.now().strftime('%Y-%m-%d') # Format: '2025-12-10' December 10th, 2025  datetime.now
     ## Initializing apple_file variable
     apple_file = None
 
@@ -605,7 +605,7 @@ if __name__ == '__main__':
     bike_directory = r"bike_files"
 
     ## Defining server upload time once to use in multiple places
-    today_upload_date = date.today().strftime("%m-%d-%Y")
+    today_upload_date = dt.date.today().strftime("%m-%d-%Y")
 
     ## Specific function that uploads data to bike specific SQL tables
     total_unprocessed_files = upload_new_fit_files(bike_directory, today_upload_date)

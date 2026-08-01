@@ -6,7 +6,7 @@ import io
 import pandas as pd
 from sqlalchemy import text
 from zoneinfo import ZoneInfo
-from datetime import datetime
+import datetime as dt
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
 from plotnine import *
@@ -16,7 +16,7 @@ from db import engine
 matplotlib.use('Agg')  # use non-GUI backend for Flask app
 
 # Grab today's date once, then have it pass through each funtion
-today = datetime.now(tz=ZoneInfo("US/Eastern"))
+today = dt.datetime.now(tz=ZoneInfo("US/Eastern"))
 
 # List of date filter calculations we can pass through
 l_3_m = today - relativedelta(weeks=14)

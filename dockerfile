@@ -1,5 +1,5 @@
-# Use the official smaller Python image from the Docker Hub
-FROM python:3.11-slim
+# Use the Bookworm version of python from docker hub 
+FROM buildpack-deps:bookworm
 
 # Install UV from Astral.sh
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

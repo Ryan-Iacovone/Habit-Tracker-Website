@@ -1,8 +1,6 @@
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+import datetime as dt
 import pandas as pd
 from itertools import product
-from pandas.api.types import CategoricalDtype
 from sqlalchemy import create_engine, text
 from db import engine
 

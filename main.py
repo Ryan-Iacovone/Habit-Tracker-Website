@@ -1,5 +1,5 @@
 # Standard Libraries
-from datetime import datetime, timedelta
+import datetime as dt
 import calendar 
 import time
 import markdown
@@ -84,7 +84,7 @@ def log_ip():
 
     ############# Inputting UTC datetime from server as timestamp variable #############
     ## Converting datetime to strftime format plus adding 0s for proper UTC conversion to sqlite
-    sever_time_utc = datetime.now(tz=ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S') + ".000000"
+    sever_time_utc = dt.datetime.now(tz=ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S') + ".000000"
 
     with engine.begin() as conn:
         conn.execute(
@@ -118,7 +118,7 @@ def submit_habit():
 
         ############# Inputting UTC datetime from server as timestamp variable #############
         ## Converting datetime to strftime format plus adding 0s for proper UTC conversion to sqlite
-        sever_time_utc = datetime.now(tz=ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S') + ".000000"
+        sever_time_utc = dt.datetime.now(tz=ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S') + ".000000"
         
         # Extracting habit name and date for input into db later 
         habit_name = form_data.pop("habit_type", "unknown")
@@ -350,7 +350,7 @@ def log_10rm_completion():
 @app.route('/habit_calendar')
 def habit_calendar_page():
     # Used to find default month and year
-    today = datetime.now(tz=ZoneInfo("EST")).date()
+    today = dt.datetime.now(tz=ZoneInfo("EST")).date()
 
     # Read ?year= and ?month= from the URL, default to current month
     year  = int(request.args.get('year',  today.year))
@@ -407,7 +407,7 @@ def habit_calendar_page():
 
     calendar_data = {}
     for day in range(1, days_in_month + 1):
-        day_date   = datetime(year, month, day)
+        day_date   = dt.datetime(year, month, day)
         is_future  = day_date.date() > today
         habits_logged = []
         mon_habits_df_filt = mon_habits_df[mon_habits_df["log_date"] == day_date]
