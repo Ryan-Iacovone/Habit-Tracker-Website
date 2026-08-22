@@ -8,23 +8,36 @@
 | `docker compose up -d --build` | Build and start containers in detached mode rebuilding the docker images from scratch.
 | `docker compose down` | Stop and remove containers and networks. Add `--volumes` to also remove named volumes. |
 | `docker images` | List all locally available images. |
-| `docker pull <image>:<tag>` | Download an image from a registry (default: Docker Hub). |
+| `docker pull <image>:<tag>` | Download an image from a registry. Default is Docker Hub. |
+| `docker system df` | See what components of docker are taking up space (images, containers, local volumes, build cache). Add `-v` for more detailed breakdown.  |
+| `docker builder prune` | Remove dangling cache. Add `-a` to remove all unused build cache that isn't currently needed. Add `--filter "until=168h"` to remove cache that hasn't been used in a week. |
 
 ---
 
 ## UV
 | Command | Description |
 |---|---|
-| `uv python pin 3.11` | Pins a particular version of python to the project by changing the .python-version file. To downgrade python need to manually change pyproject.toml file |
+| `uv init <repo name> --bare` | Initialize project with only `.pyproject.toml`. Use `--no-package` to create more traditional UV file setup with also sample main.py, a readme, `.python-version`, and a gitignore file. |
+| `uv python install 3.14.6` | Install a specific python version to computer. |
+| `uv python upgrade 3.14` | Install the latest minor Python version for a particular major feature . 3.14.6 -> 3.14.7 |
 | `uv sync` | Sync the virtual env to all packages in the project |
-| `uv venv --python 3.11` | Creates python environment with optional tag to specify version |
-| `uv lock --refresh` | Regenerates the .lock file, without refresh tag will create a lock file for project dependencies |
-| `uv python upgrade 3.12` | Upgrade a Python version to the latest supported patch release. 3.14.1 -> 3.14.6 |
-| `uv lock --upgrade-package <package>==<version>` | Upgrade a single package to a specific version |
-| `uv lock --upgrade` | Upgrade all packages |
+| `uv lock --upgrade` | Upgrade all packages, respects packages set to specific versions in `pyproject.toml`. Will update dependencies of those packages if constraints permit it. |
 | `uv export --format requirements.txt` | Export contents of the lockfile to a requirements.txt file. | 
-| `uv python install 3.14.6` | Install specific python version. | 
 
+---
+
+#### Workflows
+
+**Change Python version for a project**
+
+1. Change `requires-python` in `pyproject.toml` to desired python version such as `3.14.6`.
+2. Run `uv sync`.
+
+**Set a specific package version for project**
+
+1. Change package version under dependencies in `pyproject.toml`.
+2. Ensure package is locked to specific version like `pandas==3.0.5`.
+3. Run `uv sync`.
 ---
 
 ## Git — Everyday Commands
@@ -32,22 +45,67 @@
 | Command | Description |
 |---|---|
 | `git status` | Show changed, staged, and untracked files in the working directory. |
-| `git log --oneline` | Compact commit history — one line per commit. Add `-10` to limit to last 10. |
-| `git diff` | Show unstaged changes. Add `--staged` to see what's already staged for commit. |
 | `git add <file>` | Stage a specific file for commit. Use `git add .` to stage all changes. |
-| `git commit -m "message"` | Commit staged changes with a message. |
-| `git push` | Push committed changes to the remote (GitHub). |
-| `git pull` | Fetch and merge changes from the remote into the current branch. |
+| `git log --oneline` | Compact commit history. Add `-10` to limit to last 10. Use `--pretty=oneline` instead to get full commit ID (SHA). |
 | `git branch` | List local branches. Add `-r` for remote branches, `-a` for all. |
-| `git checkout -b <branch>` | Create and switch to a new branch. |
-| `git checkout <branch>` | Switch to an existing branch. |
-| `git stash` | Temporarily shelve uncommitted changes. Restore with `git stash pop`. |
-| `git fetch origin` | Downloads any new commits from remote and updates git's internal knowledge of what the remote looks like without touching files |
-| `git reset --hard origin/main` |      Reset tracked files to exactly match the remote branch, discarding all local changes. Could also be master instead of main |
-| `git clean -fd` | Delete untracked **files and directories** that are not in `.gitignore`. Run after `reset --hard` to fully clean up. |
-| `git pull --rebase` | Pull and replay your commits on top of the remote — cleaner history than a merge commit. |
+| `git checkout <branch>` | Switch to an existing branch. Use `git checkout <SHA>` to inspect a previous commit. |
+| `git checkout -b <branch>` | Create a new branch and switch to it. |
 
 ---
+
+#### Workflows
+
+**Sync local repo to the latest remote version**
+
+1. Run `git fetch origin` to download the latest commits and refs from GitHub without modifying local files or the current branch.
+2. Run `git reset --hard origin/main` to make the current local branch and tracked files exactly match `origin/main`, discarding local commits and uncommitted changes that aren't on the remote. |
+3. Replace `main` with `master` if that is the remote's default branch.
+4. **Result:** The local repo's tracked files and current branch now match the remote branch. `git reset --hard` does not remove untracked files.
+5. To fully clean up and remove untracked files and directories run `git clean -fd`.
+
+---
+
+## systemd — Services, Timers, and Logs
+
+| Command | Description |
+|---|---|
+| `/etc/systemd/system/` | Where you place custom `.service` and `.timer` unit files. Takes priority over defaults. |
+| `sudo systemctl daemon-reload` | Reload systemd to pick up new or modified unit files. Run after editing any `.service` or `.timer` file. |
+| `sudo systemctl enable --now <unit>` | Enable a unit at boot and starts it now.|
+| `sudo systemctl disable --now <unit>` | Disable a unit from launching at boot and also stop it now. |
+| `sudo systemctl start <unit>` | Start a service or timer immediately one-off, without enabling at boot. |
+| `sudo systemctl stop <unit>` | Stop a service or timer immediately. If already enabled, will start again at next reboot. |
+| `sudo systemctl restart <unit>` | Stop then start a service or timer. |
+| `systemctl status <unit>` | Show the current state of a service or timer. Used to see if timer/service is running, failed, or enabled. |
+| `systemctl list-timers --all` | List all timers with their next and last trigger times. |
+| `journalctl -u <unit>` | Show all journal logs for a specific service or timer unit. Use aarow keys to scroll. Add `-f` to follow live log output. Add `-n 50` to show last 50 log lines. |
+| `journalctl --disk-usage` | Show how much disk space the journal logs are consuming. |
+| `sudo journalctl --vacuum-time=7d` | Delete journal logs older than 7 days to reclaim disk space. |
+
+---
+
+#### Workflows
+
+**Create and start new systemd workflow**
+
+1. Create `my-script.service` to define what runs.
+2. Create `my-script.timer` to defines when new service runs.
+3. run `sudo systemctl daemon-reload`refresh systemd with updated .timer and .service files.
+4. Enable timer to start running `sudo systemctl enable --now my-script.timer`
+5. To fully clean up and remove untracked files and directories run `git clean -fd`.
+
+---
+
+## systemd — Targets / Desktop Environment
+
+| Command | Description |
+|---|---|
+| `systemctl get-default` | Shows what default graphic manager linux is currently set to, either headless (`multi-user.target`) or a regular GUI (`graphical.target`). |
+| `sudo systemctl set-default <unit>` | Set default boot GUI. Use `multi-user.target` for headless or `graphical.target` for xfce GUI. |
+| `sudo systemctl isolate graphical.target` | Temporarily switch to xfce GUI. Resets back to default after reboot |
+
+---
+
 
 ## Linux — Navigation & Files
 
@@ -63,6 +121,7 @@
 | `cat <file>` | Print the full contents of a file to stdout. |
 | `chmod +x <file>` | Makes a file executable, like a bash file for running systemd scripts
 | `chown user:group <file>` | Change the owner and group of a file or directory. Add `-R` to apply recursively. |
+| `inxi -F`, `inxi -Fxxx`, `inxi -S` | Various commands to see all computer system specs. |
 
 ---
 
@@ -99,57 +158,3 @@
 
 ---
 
-## systemd — Services
-
-| Command | Description |
-|---|---|
-| `sudo systemctl daemon-reload` | Reload systemd to pick up new or modified unit files. Run after editing any `.service` or `.timer` file. |
-| `sudo systemctl enable <unit>` | Enable a service to start automatically at boot. Add `--now` to also start it immediately. |
-| `sudo systemctl disable <unit>` | Prevent a service from starting automatically at boot. |
-| `sudo systemctl start <unit>` | Start a service immediately without waiting for reboot. |
-| `sudo systemctl stop <unit>` | Stop a running service immediately. |
-| `sudo systemctl restart <unit>` | Stop then start a service. Use after config changes that require a full restart Or changes to underlying python files?. |
-| `sudo systemctl reload <unit>` | Signal the service to reload its config without a full restart (if supported by the service). |
-| `systemctl status <unit>` | Show the current state of a service — running, failed, enabled — plus recent log lines. |
-| `systemctl is-active <unit>` | Print `active` or `inactive` — useful in scripts to check service state. |
-| `systemctl is-enabled <unit>` | Check if a unit is configured to start at boot. |
-| `systemctl list-units --type=service` | List all currently loaded service units and their states. |
-| `systemctl list-unit-files` | List all installed unit files and whether they are enabled or disabled. |
-
----
-
-## systemd — Timers
-
-| Command | Description |
-|---|---|
-| `systemctl list-timers --all` | List all timers with their next and last trigger times. |
-| `sudo systemctl enable --now <name>.timer` | Enable and immediately start a timer unit. No need for restart |
-| `sudo systemctl disable --now <name>.timer` | Disable a timer so it no longer runs automatically. Needs restart to take effect if don't use --now |
-| `systemctl status <name>.timer` | Inspect a timer's state, last activation, and next scheduled run. |
-| `sudo systemctl start <name>.timer` | Start a timer immediately (one-off, without enabling at boot). |
-
----
-
-## systemd — Logs (journalctl)
-
-| Command | Description |
-|---|---|
-| `journalctl -u <unit>` | Show all journal logs for a specific service or timer unit. Use aarow keys to scroll |
-| `journalctl -u <unit> -f` | Follow live log output for a unit — equivalent to `tail -f` for systemd. |
-| `journalctl -u <unit> -n 50` | Show the last 50 log lines for a unit. |
-| `journalctl -u <unit> --since "1h ago"` | Show logs from the past hour. Also accepts timestamps like `"2024-01-01 12:00"`. |
-| `journalctl -p err -b` | Show only error-level (and above) messages from the current boot. |
-| `journalctl --disk-usage` | Show how much disk space the journal logs are consuming. |
-| `sudo journalctl --vacuum-time=7d` | Delete journal logs older than 7 days to reclaim disk space. |
-
----
-
-## systemd — Unit File Reference
-
-| Path / Command | Description |
-|---|---|
-| `/etc/systemd/system/` | Where you place custom `.service` and `.timer` unit files. Takes priority over defaults. |
-| `/lib/systemd/system/` | Default unit files installed by packages. Don't edit these — override in `/etc/systemd/system/` instead. |
-| `systemctl edit <unit>` | Open an override file for a unit without touching the original. Changes survive package updates. |
-
----

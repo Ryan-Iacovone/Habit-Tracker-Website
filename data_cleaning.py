@@ -17,7 +17,7 @@ def load_book_options():
     book_titles = books_options["answer"].to_list()
 
     # Add an "Other" option to the list of book titles because 'other' is not saved to the database
-    book_titles.append("Other") 
+    book_titles.append("Other")
 
     return book_titles
 
@@ -279,8 +279,8 @@ def gen_mins_df(aw_all, l_3_m):
     full_mins_cardio["Total_min"] = round(full_mins_cardio["Total_min"], 0).astype("int64")
 
     ## Offsetting the weekdate so I can plot both cardio and weight bars on the same graph
-    full_mins_cardio['x_nudged']  = full_mins_cardio['week_date']  - timedelta(days=1)
-    full_mins_weight['x_nudged'] = full_mins_weight['week_date'] + timedelta(days=1)
+    full_mins_cardio['x_nudged']  = full_mins_cardio['week_date']  - dt.timedelta(days=1)
+    full_mins_weight['x_nudged'] = full_mins_weight['week_date'] + dt.timedelta(days=1)
     
     # Calculating total minutes per week for cardio workouts (used to set y axis max and label calculation)
     total_mins = full_mins_cardio.groupby(['week_date'])['Total_min'].agg(week_min='sum')

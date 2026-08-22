@@ -122,7 +122,7 @@ def submit_habit():
         
         # Extracting habit name and date for input into db later 
         habit_name = form_data.pop("habit_type", "unknown")
-        habit_date = form_data.pop("habit_date", datetime.now().strftime('%Y-%m-%d'))
+        habit_date = form_data.pop("habit_date", dt.datetime.now().strftime('%Y-%m-%d'))
 
         # Handling new data input via "Other" field and cleaning the input
         if habit_name == "reading":
@@ -326,7 +326,7 @@ def log_10rm_completion():
         
         ############# Inputting UTC datetime from server as timestamp variable #############
         ## Converting datetime to strftime format plus adding 0s for proper UTC conversion to sqlite
-        sever_time_utc = datetime.now(tz=ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S') + ".000000"
+        sever_time_utc = dt.datetime.now(tz=ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S') + ".000000"
         
         with engine.begin() as conn:
             conn.execute(text("""

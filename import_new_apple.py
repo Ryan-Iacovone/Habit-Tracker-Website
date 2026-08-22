@@ -474,62 +474,50 @@ def upload_fit_to_apple(fit_total, apple_cycle):
                         'workout_id': row["workout_id"]
                     })
 
-######### Functions to add food data from cronometer to sqlite db #########
-def upload_food_daily(cronometer_csv_path):
+########### Functions to add food data from cronometer to sqlite db ###########
+def upload_food_daily(cronometer_csv_path, food_upload_date):
 
     food = pd.read_csv(cronometer_csv_path)
 
-    # Because we're only storing dates, no need to add timezone, but everything is stored as EST
-
-    # Grabbing the lastest food date
-    with engine.connect() as connection: 
-        latest_food_date = pd.read_sql_query( 
-            text("""SELECT MAX(food_date) as max_date 
-                    FROM food_daily
-                """), connection )
-        
-    latest_food_date = latest_food_date["max_date"].iloc[0]
-
-    # Checking if sql df is empty or not to determine how much new data to add
-    if pd.isna(latest_food_date):
-        new_food = food
-    else:
-        new_food = food[food["Date"] > latest_food_date]
-
     # Selecting specific columns then filtering by date for new uploads 
     # Need drop duplicates because days are stratified by groups and for this data they're all the same
-    food_daily = new_food[["Date", "Completed"]].rename(columns={"Date": "food_date", "Completed": "completed"}).drop_duplicates() 
+    food_daily = food[["Date", "Completed"]].rename(columns={"Date": "food_date", "Completed": "completed"}).drop_duplicates() 
 
-    today_upload_date = dt.date.today().strftime("%m-%d-%Y")
+    # Adding today's date as a var to df to see when data was uploaded
+    food_daily["upload_date"] = food_upload_date 
 
-    food_daily["upload_date"] = today_upload_date 
-
-    food_daily.to_sql(name="food_daily", con=engine, if_exists='append', index=False)
+    # Replacing the dataset in sql every time 
+    food_daily.to_sql(name="food_daily", con=engine, if_exists='delete_rows', index=False)
 
     print("New food data uploaded to food daily table")
 
-    return new_food
+    return food
 
-def upload_fact_food(new_food):
-    # read back in the data we just uploaded
+def upload_fact_food(food, food_upload_date):
+
+    # Read back in the data we just uploaded
     with engine.connect() as connection: 
-        # renaming food_date back to date for simplicity of merging in IDs
+        # Renaming food_date back to 'date' for simplicity of merging in IDs
         # and id as food_daily_id to match with fact food table
         food_daily_new = pd.read_sql_query( 
             text("""SELECT id as food_daily_id, DATE(food_date) as Date 
-                    FROM food_daily
-                    WHERE upload_date = :today_date"""), connection,                     
-            params={"today_date": str(today_upload_date)}, # Using the str version of the datetime for filtering
+            FROM food_daily
+            WHERE upload_date = :today_date"""), 
+            connection,                     
+            params={"today_date": str(food_upload_date)}, # Using the str version of the datetime for filtering
             dtype={"food_daily_id": "Int64"}) # Parse date here takes out need for pd.to_datetime below 
-        
-    # Create fact table for food
-    food_filt = new_food.drop(columns=["Completed"])
 
+    # Dropping the completed column because it's already accounted for in food_daily
+    food_filt = food.drop(columns=["Completed"])
+
+    # Flipping all the nutrition measurements to long format
     food_long = pd.melt(food_filt, id_vars=["Date", "Group"], var_name="food_category", value_name="value")
 
+    # Creating the final table by merging in ids from food_daily
     fact_food = pd.merge(food_long, food_daily_new, how = "left", on="Date").drop(columns=["Date"]).rename(columns={"Group": "meal_time"})
 
-    fact_food.to_sql(name="fact_food", con=engine, if_exists='append', index=False)
+    # Uploading factfood to sqlite
+    fact_food.to_sql(name="fact_food", con=engine, if_exists='delete_rows', index=False)
 
 
 if __name__ == '__main__':
@@ -540,6 +528,7 @@ if __name__ == '__main__':
     # Applying logic to smartly find today's apple health export file
     ## Defining the subddirectroy where apple docs live
     directory = "apple/"
+
     ## Grabbing today's date
     today = dt.datetime.now().strftime('%Y-%m-%d') # Format: '2025-12-10' December 10th, 2025  datetime.now
     ## Initializing apple_file variable
@@ -559,7 +548,7 @@ if __name__ == '__main__':
     print("\nMoving on to data cleaning stage... \n")
     time.sleep(1)
 
-    #### Uploading new apple raw data to sqlite ####
+    ######### Uploading new apple raw data to sqlite #########
 
     # Grabbing existing max date from apple_data_raw table so that we can tell what data is old and new 
     print("Grabbing the max date from existing DB \n")
@@ -596,7 +585,7 @@ if __name__ == '__main__':
         print("No new apple workouts to upload today \n")
 
 
-    ####### Bike .fit file ETL process #######
+    ######### Bike .fit file ETL process #########
     print("\nMoving on to check if any bike workouts from .fit files need to be uploaded to bike specific SQL tables... \n")
 
     time.sleep(1)
@@ -634,14 +623,15 @@ if __name__ == '__main__':
         print("\nNo new bike .fit files needed to be uploaded today")
 
 
-    ###### Implementing food uploads to sqlite database ######
+    ######### Implementing food uploads to sqlite database #########
     cronometer_csv_path = r"cronometer\dailysummary.csv"
+    food_upload_date = dt.date.today().strftime("%m-%d-%Y") 
 
     print("\nUploading new daily food data to food_daily table")
-    new_food = upload_food_daily(cronometer_csv_path)
+    food = upload_food_daily(cronometer_csv_path, food_upload_date)
 
     print("\nUploading new food values to food_fact table")
-    upload_fact_food(new_food)
+    upload_fact_food(food, food_upload_date)
 
     print("\nAll Food data successfuly imported\n")
     time.sleep(1)

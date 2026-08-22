@@ -387,7 +387,7 @@ def get_kpi_stats():
 
 
     # Gathering times for filtering
-    today = datetime.now(tz=ZoneInfo("US/Eastern"))
+    today = dt.datetime.now(tz=ZoneInfo("US/Eastern"))
     this_month = today.strftime('%b %Y')
     last_month = (today - relativedelta(months=1)).strftime('%b %Y')
     current_year = int(today.strftime('%Y'))
