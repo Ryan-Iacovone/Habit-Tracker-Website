@@ -156,7 +156,7 @@ def add_workout_id(aw_long):
 
     # Creating a new variable based on the index  
     # Previous null values probably from Garmin are keeping workout_id from being an integer in aw_final
-    activity_map['workout_id'] = activity_map.index.astype(int) + max_workout_id()  # Start IDs from 1
+    activity_map['workout_id'] = activity_map.index.astype(int) + 1 + max_workout_id()  # Start IDs from 1
 
     # Merge activity back onto the main dataframe using startDate
     aw_final = pd.merge(aw_long, activity_map, on='StartDate', how='left', suffixes=('', '_Specifier'))
