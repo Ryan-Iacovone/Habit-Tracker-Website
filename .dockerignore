@@ -7,13 +7,9 @@ habits.db-shm
 habits.db-wal
 
 # Misc repo files not needed for container
-bikes_files/
-apple/
 CLAUDE.md
 Feature List.txt
-fix.ipynb
-import_new_apple.py
-webapp_workflow.bat
+old/
 
 # Git
 .git

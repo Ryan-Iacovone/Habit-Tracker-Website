@@ -78,6 +78,12 @@ h2 {
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
+.kpi-subtext {
+    font-size: 0.8rem;
+    opacity: 0.85;
+    margin-top: 4px;
+}
+
 .kpi-card:nth-child(2) {
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }

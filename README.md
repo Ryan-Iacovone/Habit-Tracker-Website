@@ -24,14 +24,17 @@ uv sync
 
 ## 🚀 Quick Start
 ```bash
-# Initialise the database (first‑time only)
 uv sync
-python -c "from db import init_db; init_db()"
-
-# Run the development server
 uv run python main.py
 ```
-The app will be available at `http://0.0.0.0:8501`.
+The database is initialized when the app module loads. The app will be available at `http://0.0.0.0:8501`.
+
+## 🐳 Docker Compose
+Start the container stack with:
+```bash
+docker compose up --build
+```
+The app initializes the database during import. Docker Compose uses Gunicorn's `--preload` option so initialization, including creation of the heart-rate query index, runs once in the master process before worker processes are started. Creating the index may make the first startup take extra time on a large Apple Health database.
 
 ## ✨ Feature Highlights
 - **Habit Logging** – Add, edit, and view habit entries through a user‑friendly web UI.

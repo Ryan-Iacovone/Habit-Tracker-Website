@@ -1,15 +1,17 @@
-# db.py
 from sqlalchemy import create_engine, event, text
+from pathlib import Path
+from plotnine import *
 
-# For SQLite file-based DB
-DATABASE_URL = "sqlite:///habits.db"
+# Create a single shared engine dynamically
+db_path = Path(__file__).resolve().parent.parent / "habits.db"
 
-# Create a single shared engine
 engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,   # ensures dead connections are detected/recycled
-    connect_args={"check_same_thread": False}  # needed for SQLite in multi-threaded apps
+    f"sqlite:///{db_path}",
+    pool_pre_ping=True,
+    connect_args={"check_same_thread": False}
 )
+
+
 
 # Enable WAL mode on every new connection
 @event.listens_for(engine, "connect")
@@ -19,6 +21,31 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.execute("PRAGMA synchronous=FULL") # balance durability vs performance 
     cursor.execute("PRAGMA optimize") 
     cursor.close()
+
+
+
+# Statically defining custom workout theme for all plotnine graphs
+workout_theme = theme(
+    figure_size=(10, 5),
+    legend_position=(.5, .96),
+    #legend_title=element_text(color="#1E3A52", size=11, weight='bold'),
+    legend_direction='horizontal',
+    legend_text=element_text(color="#3A5A78", size=11),
+    legend_background=element_blank(),
+    legend_key=element_blank(),
+
+    plot_background  = element_rect(fill="#FFFFFF", color=None),
+    panel_background = element_rect(fill="#F4F7FA", color=None),
+    panel_grid_major = element_line(color="#CDDDED", size=0.5),
+    panel_grid_minor_y = element_line(color="#CDDDED", linetype="solid"),
+
+    axis_text        = element_text(color="#6B8299", size=10), # X & Y axis labels
+    axis_title       = element_text(color="#3A5A78", size=13), # y axis title/label
+    #plot_title       = element_text(color="#1E3A52", size=13, weight="bold"),
+)
+
+
+
 
 
 # initalizing habits websites with sql tables needed to support it

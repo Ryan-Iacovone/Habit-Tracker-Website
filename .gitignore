@@ -17,3 +17,6 @@ apple/*.xml
 apple/*.csv
 apple/workout-routes
 apple/tristan_data
+old/
+bike_files/*.fit
+etl/outputs

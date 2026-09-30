@@ -5,7 +5,7 @@ services:
     build: .
     volumes:
       - ./habits.db:/app/habits.db
-    command: uv run gunicorn -w 2 -b 0.0.0.0:8501 main:app
+    command: ["uv", "run", "gunicorn", "--preload", "-w", "2", "-b", "0.0.0.0:8501", "main:app"]
     restart: unless-stopped
     # No ports exposed here anymore — Nginx is the only public entry point
 

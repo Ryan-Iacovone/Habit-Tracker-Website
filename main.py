@@ -1,4 +1,4 @@
-# Standard Libraries
+# Standard library imports
 import datetime as dt
 import calendar 
 import time
@@ -7,25 +7,78 @@ import markdown
 # Flask
 from flask import Flask, render_template, request, jsonify
 
-# Local database import
-from db import engine, init_db 
+# Local variable/function import
+from core.functions import engine, init_db, workout_theme
 
 # Data Handling
 import pandas as pd
 import numpy as np
 from zoneinfo import ZoneInfo
-from sqlalchemy import text, MetaData, Table, Column, Integer, String, Text, Date, DateTime, func, insert
-from data_cleaning import load_book_options, load_workout_options, specific_exercise_filter
+from sqlalchemy import text
 
 # Visualizations
+import matplotlib
+matplotlib.use('Agg')  # use non-GUI backend for Flask app
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.io as pio
+from plotnine import *
+import base64
+import io
 
 
 app = Flask(__name__)
 
+# Gunicorn must preload the app so database initialization runs once before workers fork.
+init_db()
+
+
 ########### Statically defining list of habits and their associated questions ########### :) 
+
+# Defining helper functions 
+
+## Grabbing list of book titles for new habit logging
+def load_book_options():
+
+    # read_sql_query simple 
+    with engine.connect() as connection:
+        books_options = pd.read_sql_query(
+            text("""
+                SELECT DISTINCT answer FROM habit_answers
+                WHERE question = 'book_title'
+                ORDER BY answer
+                    """), connection)
+        
+    book_titles = books_options["answer"].to_list()
+
+    # Add an "Other" option to the list of book titles because 'other' is not saved to the database
+    book_titles.append("Other")
+
+    return book_titles
+
+
+## Defining list of workout options to choose from both for logging workout habit and viewing workout exercises
+def load_workout_options(category: int):
+
+    with engine.connect() as connection:
+        workouts = pd.read_sql_query(
+            text("""
+                SELECT DISTINCT answer FROM habit_answers
+                WHERE question = 'workout_type'
+                ORDER BY answer
+            """), connection)
+        
+    workouts_list = workouts['answer'].tolist()
+
+    # Adding some logic to use this function multiple places depending on whether I need an "Other" option or not 
+    if category == 0:
+        pass
+    elif category == 1:
+        # Add "Other" option to the list of book titles and works. This way other is not saved to the database
+        workouts_list.append("Other")        
+
+    return workouts_list
+
 
 HABITS = {
     "workout": {
@@ -67,6 +120,8 @@ HABITS = {
         ]
     }
 }
+
+engine.dispose()
 
 
 ########### Log users IP address after every made request ###########
@@ -183,7 +238,87 @@ def submit_habit():
         return jsonify({"status": "error", "message": str(e)}), 500
 
     
-########### Exercise filter page displays all instances of a selected exercise ###########   
+########### Exercise filter page displays all instances of a selected exercise ###########
+
+# Functionizing exercise filter to take in selected exercise and generates html table
+def specific_exercise_filter(specific_exercise):
+
+    columns = ['entry_id', '10RM', 'comment', 'effort', 'reps', 'sets', 'weight', 'workout_type']
+    workout_df_total = pd.DataFrame(columns=columns)
+
+    with engine.connect() as connection:
+        entry_ids = pd.read_sql_query(
+            text("""
+                SELECT ha.entry_id 
+                FROM habit_answers ha 
+                WHERE answer = :exercise
+            """), connection, 
+            params={"exercise": specific_exercise})
+        
+        entry_ids = entry_ids['entry_id'].tolist()
+
+        for id in entry_ids:
+            workout_df = pd.read_sql_query(
+                text("""
+                    SELECT entry_id, question, answer 
+                    FROM habit_answers ha 
+                    WHERE entry_id = :id
+                """), connection, 
+                params={"id": id})
+            
+            workout_df = workout_df.pivot(index='entry_id', columns='question', values='answer').reset_index()
+
+            workout_df_total = pd.concat([workout_df_total, workout_df], ignore_index=True)
+
+        habit_entries = pd.read_sql_query(
+            text("""
+            SELECT log_date, id 
+            FROM habit_entries
+        """), connection)
+
+        # Merging and selecting relevant columns
+        workout_df_total = pd.merge(workout_df_total, habit_entries, left_on='entry_id', right_on='id', how='left')[["log_date", "workout_type", "weight", "sets", "reps", "effort", "comment"]]
+
+        workout_df_total['comment'] = workout_df_total['comment'].str.replace("nan", "")
+
+        workout_df_total.rename(columns={'log_date': 'Timestamp', 'workout_type': 'Exercise', 'weight': 'Weight', 'sets': 'Sets', 'reps': 'Reps',
+                                'effort': 'Effort Level', 'comment': 'Notes:'}, inplace=True)
+
+        # reading in 10RM workouts to add 
+        ten_rm_additions = pd.read_sql_query(
+            text("""
+                SELECT tc.completion_date as Timestamp, tp.exercise_name as Exercise, tp.target_weight as Weight, tp.sets as Sets, tp.reps as Reps, tc.notes as 'Notes:' 
+                FROM tenrm_completions tc
+                LEFT JOIN tenrm_plans tp 
+                    ON tp.id = tc.plan_id
+                WHERE tp.exercise_name = :exercise
+                AND tc."timestamp" = (
+                    SELECT MAX(tc2."timestamp")
+                    FROM tenrm_completions tc2
+                    -- Correlated Subquery
+                    -- This works because we loop through plan_ids in orig table until it equals max plan_id
+                    WHERE tc2.plan_id = tc.plan_id)
+            """), connection, 
+            params={"exercise": specific_exercise})
+
+        # Adding in effort level as a blank variable since 10rm data doesn't track that
+        ten_rm_additions['Effort Level'] = ""
+
+        # Combining original workouts with 10rm workouts (Since they have the same columns and format) 
+        combined_works = pd.concat([workout_df_total, ten_rm_additions], ignore_index=True) 
+
+        # Convert the timestamp variable to a datetime format ( Could have done this sql query with parse dates too)
+        combined_works['Timestamp'] = pd.to_datetime(combined_works['Timestamp'])
+
+        # Sort the combined_works table by date before converting to string output (for readability)
+        combined_works = combined_works.sort_values('Timestamp')
+
+        # Converting Timestamp into readable string format (flexability to display time however I want
+        combined_works['Timestamp'] = combined_works['Timestamp'].dt.strftime('%B %d, %Y')
+
+    return combined_works.to_html(classes='workout-table', index=False, border=1)
+
+
 @app.route('/exercise_filter', methods=['GET', 'POST'])
 def exercise_filter_page(): 
     # Loading in exercise options for user
@@ -201,6 +336,195 @@ def exercise_filter_page():
                            selected_exercise=selected_exercise)
 
 
+
+########### Heart filter visualization page shows heart over time for selected workout ###########   
+@app.route('/hr_filter', methods=['GET', 'POST'])
+def hr_filter_page(): 
+
+############ Initial workouts list for user to choose from ############
+    ## Grabbing the list of workouts from database and applying a nice label
+    with engine.connect() as connection:
+        workouts = pd.read_sql_query(
+            text("""
+                SELECT DISTINCT aw.workout_id, DATETIME(aw.StartDate, 'localtime') as date, concat_ws(" ", strftime('%m-%d-%Y', aw.StartDate),  replace(aw.activity, 'TraditionalStrengthTraining', 'Weights')  ) as workout_label
+                FROM apple_workouts aw
+                WHERE aw.workout_id IS NOT NULL
+                ORDER  BY aw.StartDate desc
+            """), connection,
+            dtype={"workout_id": "int64"},
+            parse_dates=['date'])
+
+    ## Converting output options to list 
+    workout_options = workouts["workout_label"].to_list()
+
+    
+############ Reading in user choosen workout from webapp front end ############
+    selected_workout = request.form.get('workout')
+
+    # Stays None (blank) until a workout is picked
+    #hr_plot_url = None  
+
+    # Setting the default workout when heart rate page is initally opened 
+    if not selected_workout:
+        # Selecting the latest workout id to get the correct workout label
+        max_id = workouts["workout_id"].max() 
+
+        selected_workout = workouts.loc[workouts["workout_id"] == max_id, "workout_label"].iloc[0]
+
+
+############ Using the selected workout to get heart rate data for graph and KPIs ############
+
+    ## Grabbing the workout ID of the user selected workout
+
+    #selected_workout_id = workouts[workouts["workout_label"] == selected_workout][["workout_id"]].iloc[0, 0]
+    selected_workout_id = workouts.loc[workouts["workout_label"] == selected_workout, "workout_id"].iloc[0]
+
+    ## Finding the start and duration of the selected workout to get start and end date
+    with engine.connect() as connection:
+        times = pd.read_sql_query(
+            text("""
+                SELECT aw.workout_id as id, aw.StartDate as start_date, aw.value 
+                FROM apple_workouts aw 
+                WHERE aw.metric = 'Duration' AND aw.workout_id = :selected_workout_id
+            """), connection,
+            dtype={"id": "int64"},
+            params={"selected_workout_id": int(selected_workout_id)},
+            parse_dates=['start_date'])
+
+    ### Adding the duration and start time together get workout end time
+    times["end_date"] = times["start_date"] + dt.timedelta(minutes = times["value"].iloc[0] )
+
+    ## Grabbing heart rate values for duration of the workout
+    with engine.connect() as connection:
+        hr_df = pd.read_sql_query(
+            text("""
+                SELECT adr.value as 'HeartRate', DATETIME(adr.startDate, 'localtime') as date 
+                FROM apple_data_raw adr 
+                WHERE adr.type = 'HeartRate' AND
+                    adr.startDate BETWEEN :t_low AND :t_upper
+                ORDER BY adr.startDate
+            """), connection,
+            dtype={"HeartRate": "float64"},
+            params={"t_low": str( times["start_date"].iloc[0] ), "t_upper": str( times["end_date"].iloc[0] ) },
+            parse_dates=['date'])
+
+    ### Calculating elapsed time from the start
+    hr_df["run_time"] = hr_df["date"] - hr_df["date"].iloc[0]
+
+
+############ Building the heartrate plot ############ 
+    hr_plot = (ggplot(hr_df, aes('run_time', 'HeartRate')) +
+        
+        geom_line(size=1.2, color='red') +
+        geom_point(size=1.2, color='black') +
+        
+        geom_smooth(color = "green", span=0.3) +
+
+        # Horizontal lines for HR zones
+        geom_hline(yintercept=[130, 145, 160, 180], linetype='dashed', color=['green', 'yellow', 'orange', 'red'], size=0.5) +
+
+        scale_x_datetime(date_labels='%H:%M:%S') +
+
+        labs(title= f"{selected_workout} Workout",
+            x="",
+            y="Heart Rate",
+            fill = "Activity") +
+
+        # Global plotnine workout theme graph 
+        workout_theme
+        )
+
+    ## Render plot to a matplotlib figure
+    fig = hr_plot.draw()
+
+    ## Save figure to buffer
+    static_bytes = io.BytesIO()
+    fig.savefig(static_bytes, format='png', bbox_inches='tight')
+    static_bytes.seek(0)
+    static_base64 = base64.b64encode(static_bytes.read()).decode('utf-8')
+    hr_plot_url = f"data:image/png;base64,{static_base64}"
+    plt.close(fig)
+
+
+############ Calculating heartrate KPIs ############
+
+    ## Calculate the time difference between each heart rate measurement.
+    hr_df["time_delta"] = hr_df["date"].diff()
+
+    ## Formatting functiont to turn total seconds into a "MM:SS" format 
+    def format_mmss(total_seconds):
+        minutes, seconds = divmod(int(round(total_seconds)), 60)
+        return f"{minutes}:{seconds:02d}"  # MM:SS for display
+
+    ### Total workout time (not elapsed time so doesn't include paused time)
+    total_seconds = hr_df["time_delta"].sum().total_seconds()
+    total_time = round(total_seconds / 60, 2)  # Decimal minutes, kept for percentage calculations.
+    total_time_str = format_mmss(total_seconds)
+
+    ### Time in zone 2
+    zone2_seconds = hr_df.loc[hr_df["HeartRate"] <= 145, "time_delta"].sum().total_seconds()
+    zone2_time = round(zone2_seconds / 60, 2)
+    zone2_time_str = format_mmss(zone2_seconds)
+
+    ### Percentage of time in zone 2
+    zone2_time_pct = round(zone2_time / total_time * 100, 2)
+
+    ### Time above zone 2
+    zone2_above_seconds = hr_df.loc[hr_df["HeartRate"] > 145, "time_delta"].sum().total_seconds()
+    zone2_time_above = round(zone2_above_seconds / 60, 2)
+    zone2_time_above_str = format_mmss(zone2_above_seconds)
+
+    ### Percentage of time above zone 2
+    zone2_time_above_pct = round(zone2_time_above / total_time * 100, 2)
+
+    
+##### Additional workout specific KPIs ######
+    
+    ## Retrieve all relevant values for the selected workout
+    with engine.connect() as connection:
+        workout_kpis = pd.read_sql_query(
+            text("""
+                SELECT aw.metric, aw.value, aw.measurement_type, aw.activity_type 
+                FROM apple_workouts aw 
+                WHERE aw.workout_id = :selected_workout_id
+            """), connection,
+            params={"selected_workout_id": int(selected_workout_id)}
+        )
+
+    #### Pace ####
+    workout_distance = workout_kpis.loc[workout_kpis["metric"] == "DistanceWalkingRunning", "value"].sum()
+
+    # Check to ensure we've got a pace number for only walking and running workouts
+    if workout_distance > 0:
+        pace_seconds = (total_time * 60) / workout_distance
+        pace_str = format_mmss(pace_seconds)
+    else:
+        # Placeholder string when no pace
+        pace_str = "--"
+
+
+    return render_template('hr_filter.html',
+                        # Plots 
+                        hr_plot_url=hr_plot_url,
+
+                        # Datsets/values
+                        workout_options=workout_options, # list of workout options,
+                        selected_workout=selected_workout, # Specific workout selected
+                        
+                        # KPIs
+                        total_time = total_time_str,
+
+                        zone2_time = zone2_time_str,
+                        zone2_time_pct = zone2_time_pct,
+
+                        zone2_time_above = zone2_time_above_str,
+                        zone2_time_above_pct = zone2_time_above_pct,
+
+                        workout_pace_str = pace_str,
+                        workout_distance = workout_distance
+    )
+
+
 ########### visualization page for all apple workouts ###########
 @app.route('/overview_visualizations', methods=['GET', 'POST'])
 def overview_visualization_page():
@@ -208,7 +532,7 @@ def overview_visualization_page():
     # Bringing in df of kpis from pre-ran csv file
 
     #df = pd.read_csv(r'static\kpi_stats.csv')
-    df = pd.read_csv('static/kpi_stats.csv')
+    df = pd.read_csv('static/charts/kpi_stats.csv')
 
     workout_count_year = df['workout_count_year'].iloc[0]
     workout_count_LM = df['workout_count_LM'].iloc[0]
@@ -509,5 +833,4 @@ def shutdown_session(exception=None):
         pass  # Don't let teardown errors surface to users
 
 if __name__ == '__main__':
-    init_db()  # Initialize sql database when the app starts for the first time (taken from db.py)
-    app.run(debug=True, host="0.0.0.0", port=8501)
+    app.run(debug=False, host="0.0.0.0", port=8501)

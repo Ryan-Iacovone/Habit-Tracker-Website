@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!--<meta name="viewport" content="width=device-width, initial-scale=1.0"> I like this page better without this --> 
+    <!-- Link to external CSS file for consistent styling across pages -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+
+    
+    </style>
+</head>
+
+<body>
+    <div class="container_wide">
+        <h1>Triathlon Training Dashboard</h1>
+
+        <!-- Navigation buttons -->
+        <div class="nav-buttons">
+            <a href="/"                         class="nav-button">Home</a>
+            <a href="/exercise_filter"          class="nav-button">Exercise Filter</a>
+            <a href="/habit_calendar"           class="nav-button">Habit Calendar</a>
+            <a href="/hr_filter"                class="nav-button">Heart Rate</a>
+            <a href="/overview_visualizations"  class="nav-button">Overview Visuals</a>
+            <a href="/10rm_tracker"             class="nav-button">10 RM Workouts</a>
+        </div>
+
+                <!-- KPI Metrics Section -->
+        <div class="section">
+            <h2>{{ workout }} Workout Metrics</h2>
+            <div class="kpi-section">
+                <div class="kpi-card">
+                    <div class="kpi-title">Workout Duration</div>
+                    <div class="kpi-value">{{ total_time }} <span style="font-size: 1rem;">Mins</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Time in Zone 2</div>
+                    <div class="kpi-value">{{ zone2_time }} <span style="font-size: 1rem;">Mins</span></div>
+                    <div class="kpi-subtext">{{ zone2_time_pct }}% of workout</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Time above Zone 2</div>
+                    <div class="kpi-value">{{ zone2_time_above }} <span style="font-size: 1rem;">Mins</span></div>
+                    <div class="kpi-subtext">{{ zone2_time_above_pct }}% of workout</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Avg Pace</div>
+                    <div class="kpi-value">{{ workout_pace_str }} <span style="font-size: 1rem;">Mins</span></div>
+                    <div class="kpi-subtext">{{ workout_distance }} <span style="font-size: .8rem;">Miles</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Avg Daily Steps</div>
+                    <div class="kpi-value">{{ steps_L3_mon }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">         
+            <h2>Filter by Workout</h2>
+            <form method="POST" id="workout-form">
+                <label for="workout">Workout:</label>
+                <select name="workout" id="workout" onchange="this.form.submit()">
+                    {% for workout in workout_options %}
+                        <option value="{{ workout }}" {% if workout == selected_workout %}selected{% endif %}>
+                            {{ workout }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+            
+            <div class="chart-grid">
+                <div class="plot-box">
+                    <h3></h3>
+                    <img src="{{ hr_plot_url }}" alt="Heart Rate Plot">
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
