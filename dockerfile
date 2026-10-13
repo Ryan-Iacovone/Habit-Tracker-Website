@@ -1,5 +1,5 @@
-# Use the Bookworm version of python from docker hub 
-FROM buildpack-deps:bookworm
+# Match the Python version pinned in pyproject.toml without the extra build tools.
+FROM python:3.14.5-slim-bookworm
 
 # Install UV from Astral.sh
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -12,11 +12,9 @@ COPY pyproject.toml uv.lock ./
 
 # Install dependencies as a separate layer
 # This layer only rebuilds when pyproject.toml or uv.lock changes
-RUN uv sync --locked --no-install-project
+RUN uv sync --locked --no-install-project --no-dev
 
-# Now copy the rest of your code, copy the project into the image
-# This layer rebuilds on every code change, but that's fine
-# because dependency installation is already cached above
+# Copy the app and its runtime assets after installing dependencies.
 COPY . .
 
 # Expose the port of my flask app (not technically needed because in docker compose)

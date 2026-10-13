@@ -1,15 +1,22 @@
-# Virtual environment - this is almost certainly your 6GB culprit
+# Local environments and generated files
 .venv
 
-# Database - you mount this at runtime so it doesn't need to be baked in
+# Runtime database is mounted by Compose
 habits.db
 habits.db-shm
 habits.db-wal
 
-# Misc repo files not needed for container
+# Personal data and ETL inputs are not needed by the web app
+apple/
+bike_files/
+cronometer/
+etl/
+
+# Miscellaneous files not needed in the app image
 CLAUDE.md
 Feature List.txt
 old/
+*.ipynb
 
 # Git
 .git
@@ -21,15 +28,13 @@ __pycache__
 *.pyo
 *.pyd
 .pytest_cache
-/__pycache__
 
 # Local dev files
 .env
 *.log
 .idea/
-CLAUDE.md
 
 # Docker files themselves
-Dockerfile
+dockerfile
 docker-compose.yml
 nginx.conf
