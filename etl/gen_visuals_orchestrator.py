@@ -1,14 +1,17 @@
 import papermill as pm
 import datetime as dt
-import os
+from pathlib import Path
 
-# Ensuring that the outputs folder is created
-os.makedirs("outputs", exist_ok=True)
+# __file__ is the path Python uses for the current script whereas 'Path().' starts from the CWD 
+script_dir = Path(__file__).resolve().parent
+notebook_path = script_dir / "notebooks" / "visual_creations.ipynb"
+output_dir = script_dir / "outputs" # In pathlib, / is overloaded by Path objects to join path components:
+output_dir.mkdir(parents=True, exist_ok=True) # Ensuring the outputs directory exists
 
 today = dt.datetime.now().strftime("%m-%d-%Y")
 
 # Executing the visual creations notebook
 pm.execute_notebook(
-    r"notebooks\visual_creations.ipynb",
-    rf"outputs\visual_creations_output_{today}.ipynb",
+    notebook_path,
+    output_dir / f"visual_creations_output_{today}.ipynb",
 )
