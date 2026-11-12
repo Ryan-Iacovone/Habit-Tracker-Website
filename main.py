@@ -713,14 +713,53 @@ def habit_calendar_page():
     month_end   = f"{year}-{month:02d}-{days_in_month}"
 
     with engine.begin() as conn:
-        mon_habits_df = pd.read_sql("""SELECT he.log_date,  h.name as habit_type, ha.entry_id, ha.question, ha.answer
-                            FROM habit_answers ha
-                            LEFT OUTER JOIN habit_entries he
-                            ON he.id = ha.entry_id
-                            LEFT OUTER JOIN habits h
-                            ON h.id = he.habit_id
-                            WHERE h.name in ('stretch', 'reading') AND ha.question in ('stretch_type', 'book_title') AND he.log_date BETWEEN :start_mon AND :end_mon
-                            ORDER BY date(he.log_date ) DESC """, conn,
+        mon_habits_df = pd.read_sql("""
+                                WITH combined AS (
+                                    SELECT
+                                        he.log_date,
+                                        h.name AS habit_type,
+                                        ha.entry_id,
+                                        MAX(CASE WHEN ha.question = 'book_title'   THEN ha.answer END) AS book_title,
+                                        MAX(CASE WHEN ha.question = 'pages'        THEN ha.answer END) AS pages,
+                                        MAX(CASE WHEN ha.question = 'stretch_type' THEN ha.answer END) AS stretch_type,
+                                        MAX(CASE WHEN ha.question = 'time'         THEN ha.answer END) AS time,
+                                        NULL AS workout_type,
+                                        NULL AS duration
+                                    FROM habit_answers ha
+                                    LEFT JOIN habit_entries he 
+                                        ON he.id = ha.entry_id
+                                    LEFT JOIN habits h         
+                                        ON h.id = he.habit_id
+                                    WHERE ha.question IN ('book_title', 'pages', 'stretch_type', 'time')
+                                    GROUP BY ha.entry_id, he.log_date, h.name
+                                    UNION ALL
+                                    SELECT
+                                        DATE(datetime(aw.StartDate, 'localtime')),
+                                        "workout" AS habit_type,
+                                        aw.workout_id,
+                                        NULL, NULL, NULL, NULL, --placeholder values for actual habits
+                                        CASE WHEN aw.activity = 'TraditionalStrengthTraining' 
+                                            THEN 'Weights'
+                                            ELSE aw.activity
+                                            END AS workout_type,
+                                        ROUND(MAX(aw.value), 1)
+                                    FROM apple_workouts aw
+                                    WHERE aw.metric = 'Duration'
+                                    GROUP BY aw.workout_id, 1, aw.activity
+                                )
+                                SELECT -- Need this select statement to properly merge above tables, otherwise lots of nulls will be left
+                                    log_date,
+                                    LOWER(habit_type) as habit_type,
+                                    MAX(book_title)   AS book_title,
+                                    MAX(pages)        AS pages,
+                                    MAX(stretch_type) AS stretch_type,
+                                    MAX(time)         AS time,
+                                    MAX(workout_type) AS workout_type,
+                                    SUM(duration)     AS duration
+                                FROM combined
+                                GROUP BY log_date, entry_id
+                                ORDER BY log_date DESC, habit_type
+                        """, conn,
                         params= {"start_mon": month_start, "end_mon": month_end },
                         parse_dates=["log_date"])
 
@@ -739,26 +778,41 @@ def habit_calendar_page():
         for habit_type, group in mon_habits_df_filt.groupby("habit_type"):
 
             if habit_type == "reading":
-                book    = group.loc[group["question"] == "book_title",  "answer"].values
-                #pages   = group.loc[group["question"] == "pages",       "answer"].values
-                tooltip = f"{book[0]}: page_holder"
+                book = group["book_title"].values
+                pages = group["pages"].values
+                tooltip = f"{book[0]}: {pages[0]} pages"
 
             elif habit_type == "stretch":
-                stretches = group.loc[group["question"] == "stretch_type", "answer"].values
-                #times     = group.loc[group["question"] == "time",  "answer"].values
+                stretches = group["stretch_type"].values
+                times = group["time"].values
 
-                tooltip = ""
-                for stretch in stretches:
-                    tooltip += f"{stretch}: time\n"
+                tooltip = "\n".join(  # combines the generated strings into one string, putting a newline between each one.
+                    f"{stretch}: {time_of_day}"
+                    for stretch, time_of_day in zip(stretches, times) # pairs items from two sequences by position
+                )
+
+            elif habit_type == "workout":
+                workout = group["workout_type"].values
+                duration = group["duration"].values
+                tooltip = f"{workout[0]}: {duration[0]} minutes"
 
             else:
                 tooltip = habit_type.title()
 
-            habits_logged.append({
-                "habit_type":   habit_type,
-                "display_name": habit_type.title(),
-                "tooltip":      tooltip,
-            })
+            # Extra if logic to package the habits_logged list to show more granular workout names 
+            if habit_type == "workout":
+                habits_logged.append({
+                    "habit_type":   habit_type,
+                    "display_name": workout[0].title(),
+                    "tooltip":      tooltip,
+                })
+
+            else:
+                habits_logged.append({
+                    "habit_type":   habit_type,
+                    "display_name": habit_type.title(),
+                    "tooltip":      tooltip,
+                })
 
         #habits_logged = mon_habits_df[mon_habits_df["log_date"] == day_date]["habit_type"].unique().tolist()        
         # habits_logged = mon_habits_df.loc[mon_habits_df["log_date"] == day_date, "habit_type"].unique().tolist()
@@ -833,4 +887,4 @@ def shutdown_session(exception=None):
         pass  # Don't let teardown errors surface to users
 
 if __name__ == '__main__':
-    app.run(debug=False, host="0.0.0.0", port=8501)
+    app.run(debug=True, host="0.0.0.0", port=8501)

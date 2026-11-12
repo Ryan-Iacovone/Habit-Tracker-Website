@@ -1,8 +1,11 @@
 # Match the Python version pinned in pyproject.toml without the extra build tools.
-FROM python:3.14.5-slim-bookworm
+FROM python:3.14.10-slim-trixie
 
 # Install UV from Astral.sh
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Use the image's Python; fail instead of downloading another one
+ENV UV_PYTHON_DOWNLOADS=never
 
 # Set the working directory in the container
 WORKDIR /app

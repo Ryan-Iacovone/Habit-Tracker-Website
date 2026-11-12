@@ -3,7 +3,7 @@ name = "habit-tracker-website"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = "==3.14.5"
+requires-python = "==3.14.10"
 dependencies = [
     "fitparse==1.2.0",
     "flask==3.1.2",
@@ -14,12 +14,13 @@ dependencies = [
     "nbformat==5.10.4",
     "numpy==2.3.5",
     "openpyxl==3.1.5",
-    "pandas==3.0.5",
+    "pandas==3.1.0",
     "papermill==2.7.0",
     "plotly==6.3.1",
     "plotnine==0.15.3",
     "seaborn==0.13.2",
     "sqlalchemy==2.0.44",
+    "tzdata==2026.3",
 ]
 
 [tool.uv]
